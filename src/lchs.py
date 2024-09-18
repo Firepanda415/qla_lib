@@ -1,4 +1,4 @@
-### Plan
+### Plan (Not following)
 ## References:
 ## [1] Quantum algorithm for linear non-unitary dynamics with near-optimal dependence on all parameters https://arxiv.org/pdf/2312.03916
 ## [2] Quantum singular value transformation and beyond: exponential improvements for quantum matrix arithmetics https://dl.acm.org/doi/pdf/10.1145/3313276.3316366
@@ -29,8 +29,8 @@ from typing import Callable
 
 ####
 
-# Inumpyut preparation
-def cart_decomp(A:numpy.matrix) -> tuple[numpy.matrix,numpy.matrix]:
+# Input preparation
+def cart_decomp(A:numpy.matrix, eigcheck=True) -> tuple[numpy.matrix,numpy.matrix]:
     """
     Cartesian decomposition of a numpy A
     Generate L and H matrices from a given numpy A, L = 0.5*(A + A^T), H = -0.5j*(A - A^T), A = L + iH
@@ -45,10 +45,11 @@ def cart_decomp(A:numpy.matrix) -> tuple[numpy.matrix,numpy.matrix]:
     H = -0.5j*(A-A.conjugate().transpose())
 
     ## Check if L is positive semidefinite
-    L_eigvals = numpy.linalg.eigh(L)[0]
-    for eigval in L_eigvals:
-        if eigval < 0:
-            raise Warning("L has negative eigenvalues:", eigval)
+    if eigcheck:
+        L_eigvals = numpy.linalg.eigh(L)[0]
+        for eigval in L_eigvals:
+            if eigval < 0:
+                raise Warning("L has negative eigenvalues:", eigval)
     return L, H 
 
 
@@ -59,6 +60,7 @@ def cart_decomp(A:numpy.matrix) -> tuple[numpy.matrix,numpy.matrix]:
 ## Define Kernal functions
 def cbeta(beta:float) -> float:
     ## This can be changed if different C_beta is used
+    ## C_beta = 2\pi e^{-2^beta}
     return 2*numpy.pi*numpy.exp(-2**beta)
 
 def kernel_func(beta:float, z:float) -> complex:

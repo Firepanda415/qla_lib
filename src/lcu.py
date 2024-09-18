@@ -19,8 +19,9 @@ def qiskit_to_normal_order(qiskit_matrix):
             new_matrix[normal_i,normal_j] = qiskit_matrix[i,j]
     return new_matrix
 
-
-def prep_oracle(coeff_array: list) -> numpy.array:
+## Use QR decomposition to make the matrix unitary
+## O(n^3) cost for orthogonalization
+def state_prep_qr(coeff_array: list) -> numpy.array:
     ## See (7.58) in https://arxiv.org/pdf/2201.08309
     ## LCU Oracle for PREPARE for T = \sum_i=0^{K-1} a_i U_i
     ## V|0000...0> = 1/\sqrt(||a||_1) \sum_i=0^{K-1} \sqrt(|a_i|)|i>
@@ -29,7 +30,12 @@ def prep_oracle(coeff_array: list) -> numpy.array:
     ## V = 1/\sqrt(||a||_1)   \sqrt(a_1)    *   *  ...  *
     ##                          ....        *   *  ...  *
     ##                        \sqrt(a_{K-1} *   *  ...  *
-    
+    ## Return
+    ##   V = Q, where Q is unitary that prepare V|0000...0> = 1/\sqrt(||a||_1) \sum_i=0^{K-1} \sqrt(|a_i|)|i>
+    for c in coeff_array:
+        if c < 0:
+            raise ValueError("All coefficients should be positive, but we have", c)
+
     l1norm = numpy.linalg.norm(coeff_array, ord=1)
     coeff_array_normedsqrt = numpy.sqrt(numpy.abs(coeff_array)/l1norm)
     num_terms = len(coeff_array)
@@ -38,12 +44,21 @@ def prep_oracle(coeff_array: list) -> numpy.array:
     for row in range(num_terms):
         v[row,0] =  coeff_array_normedsqrt[row]
     ## orthgonoalize v to make it unitary
-    q,r = numpy.linalg.qr(v)
+    q,r = numpy.linalg.qr(v, mode='complete')
     if abs(q[0,0] -coeff_array_normedsqrt[0]) > 1e-12:
         q = -q
     if numpy.linalg.norm(q[:,0] - v[:,0]) > 1e-12:
         raise ValueError("QR decomposition failed to make V a unitary matrix", "we get", q[:,0], "but suppose to get", v[:,0])
     return q
+
+
+
+def prep_oracle(coeff_array: list, method='qr') -> numpy.array:
+    if method.lower() == 'qr':
+        return state_prep_qr(coeff_array)
+    else:
+        raise ValueError("Unknown method", method, "for preparing the oracle")
+
 
 def select_oracle(unitary_array: list[numpy.ndarray]) -> qiskit.QuantumCircuit:
     ## See (7.55) in https://arxiv.org/pdf/2201.08309
@@ -126,3 +141,9 @@ if __name__ == "__main__":
     print("Correct answer:", correct_answer)
     print("\nLCU Implementation:", lcu_sol)
     print("\nError:", numpy.linalg.norm(correct_answer - lcu_sol, ord=2))
+
+
+
+
+
+
