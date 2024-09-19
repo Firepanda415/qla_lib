@@ -1,6 +1,10 @@
+## This is prototype code for NWQSim https://github.com/pnnl/NWQ-Sim
+## Author: Muqing Zheng
+
+
 import qiskit
 import numpy
-import scipy
+# import scipy
 
 
 

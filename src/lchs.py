@@ -1,3 +1,7 @@
+## This is prototype code for NWQSim https://github.com/pnnl/NWQ-Sim
+## Author: Muqing Zheng
+
+
 ### Plan (Not following)
 ## References:
 ## [1] Quantum algorithm for linear non-unitary dynamics with near-optimal dependence on all parameters https://arxiv.org/pdf/2312.03916
