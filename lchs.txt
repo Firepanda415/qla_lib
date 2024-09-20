@@ -1,0 +1,65 @@
+Eigenvalues of L: [0.27482585+5.22840560e-17j 0.13229749+5.69803912e-18j
+ 0.20945152+6.33556652e-18j 0.18559316+1.67806609e-17j]
+============================================================
+
+
+Tests with Quantum Subroutine (My Implementation)
+  Preset parameters T =  1 beta =  0.9 epsilon =  0.1
+  Truncation range [-K,K] K = 5.354364552334892
+  Step size h1 = 1.338591138083723
+  Number of nodes in [mh_1, (m+1)h_1] Q = 4
+  Total number of nodes M = 32
+  ||c||_1 = 1.6012473927010216
+  
+Transpiled LCU Circ Stats
+  OrderedDict({'rz': 70907, 'cx': 66756, 'ry': 9240, 'rx': 3337})
+  Number of Qubits: 7
+  Circuit Depth: 106123
+  Homogeneous u(T)= [0.03221093-0.02068211j 0.4912132 +0.00260082j 0.66728196-0.01338856j
+ 0.41023427+0.03036566j]
+  SciPy Sol   u(T)= [0.03247059-0.01654422j 0.44430085+0.00328479j 0.60858687-0.01306805j
+ 0.37201095+0.02721994j]   Norm= 0.8416792138180779
+  Homogeneous u(T)/||u(T)||= [0.03478613-0.02233561j 0.53048478+0.00280875j 0.72062991-0.01445895j
+ 0.44303174+0.03279334j]
+  SciPy Sol   u(T)/||u(T)||= [0.03247059-0.01654422j 0.44430085+0.00328479j 0.60858687-0.01306805j
+ 0.37201095+0.02721994j]   Norm= 0.8416792138180779
+  Homogeneous solution error u(T)         : 0.08446633673052352    Relative error: 0.10035454760414249
+  Homogeneous solution error u(T)/||u(T)||: 0.006158455502399725      Relative error: 0.006158455502399726
+
+
+Tests with Quantum Subroutine (Qiskit API)
+  Preset parameters T =  1 beta =  0.9 epsilon =  0.1
+  Truncation range [-K,K] K = 5.354364552334892
+  Step size h1 = 1.338591138083723
+  Number of nodes in [mh_1, (m+1)h_1] Q = 4
+  Total number of nodes M = 32
+  ||c||_1 = 1.6012473927010216
+  
+Transpiled LCU Circ Stats
+  OrderedDict({'rz': 16947, 'cx': 10677, 'ry': 7221, 'rx': 348})
+  Number of Qubits: 7
+  Circuit Depth: 32688
+  Homogeneous u(T)= [0.03221093-0.02068211j 0.4912132 +0.00260082j 0.66728196-0.01338856j
+ 0.41023427+0.03036566j]
+  SciPy Sol   u(T)= [0.03247059-0.01654422j 0.44430085+0.00328479j 0.60858687-0.01306805j
+ 0.37201095+0.02721994j]   Norm= 0.8416792138180779
+  Homogeneous u(T)/||u(T)||= [0.03478613-0.02233561j 0.53048478+0.00280875j 0.72062991-0.01445895j
+ 0.44303174+0.03279334j]
+  SciPy Sol   u(T)/||u(T)||= [0.03247059-0.01654422j 0.44430085+0.00328479j 0.60858687-0.01306805j
+ 0.37201095+0.02721994j]   Norm= 0.8416792138180779
+  Homogeneous solution error u(T)         : 0.0844663367133271    Relative error: 0.1003545475837114
+  Homogeneous solution error u(T)/||u(T)||: 0.006158455502462594      Relative error: 0.006158455502462595
+============================================================
+
+
+Tests with Classical Subroutine (Homogeneous)
+  Homogeneous u(T)= [0.03793092-0.0110458j  0.41414185-0.00042542j 0.58665096-0.01820244j
+ 0.35469746+0.03841445j]
+  SciPy Sol   u(T)= [0.03247059-0.01654422j 0.44430085+0.00328479j 0.60858687-0.01306805j
+ 0.37201095+0.02721994j]   Norm= 0.8416792138180779
+  Homogeneous u(T)/||u(T)||= [0.04723498-0.01375522j 0.51572645-0.00052977j 0.73055023-0.0226673j
+ 0.44170099+0.04783711j]
+  SciPy Sol   u(T)/||u(T)||= [0.03247059-0.01654422j 0.44430085+0.00328479j 0.60858687-0.01306805j
+ 0.37201095+0.02721994j]   Norm= 0.8416792138180779
+  Homogeneous solution error u(T)         : 0.043772118147794525    Relative error: 0.05200570173193741
+  Homogeneous solution error u(T)/||u(T)||: 0.02498550344918443      Relative error: 0.024985503449184432

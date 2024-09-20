@@ -10,18 +10,6 @@ import qiskit
 
 
 
-# def qiskit_to_normal_order(qiskit_matrix):
-#     num_qubits = int(numpy.log2(qiskit_matrix.shape[0]))
-#     bin_str = '{0:0'+str(num_qubits)+'b}'
-#     new_matrix = numpy.zeros(qiskit_matrix.shape, dtype=complex)
-#     for i in range(qiskit_matrix.shape[0]):
-#         for j in range(qiskit_matrix.shape[1]):
-#             normal_i = int(bin_str.format(i)[::-1],2)
-#             normal_j = int(bin_str.format(j)[::-1],2)
-#             new_matrix[normal_i,normal_j] = qiskit_matrix[i,j]
-#     return new_matrix
-
-
 
 ## Binary operations
 def binary_reflected_gray_code(m:int) -> int:

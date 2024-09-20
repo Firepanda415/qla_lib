@@ -36,7 +36,13 @@ def second_decomp(block_u1:numpy.ndarray, block_u2:numpy.ndarray, enable_debug:b
     if block_u1.shape[0] != block_u2.shape[0]:
         raise ValueError('Input matrices must have the same size, but', block_u1.shape[0], block_u2.shape[0], 'were given')
     
-    bu_evals, bu_v = scipy.linalg.eig(block_u1.dot( block_u2.T.conj() ) )
+    from qiskit.quantum_info.operators.predicates import is_hermitian_matrix ## 
+    if is_hermitian_matrix(block_u1.dot( block_u2.T.conj() )):
+        bu_evals, bu_v = scipy.linalg.eig(block_u1.dot( block_u2.T.conj() ) )
+    else:
+        bu_evals, bu_v = scipy.linalg.schur(block_u1.dot( block_u2.T.conj() ), output="complex" )
+        bu_evals = bu_evals.diagonal()
+
     bu_d_inv = numpy.diag( 1/numpy.sqrt(bu_evals) )
     bu_w = bu_d_inv @ bu_v.T.conj() @ block_u1
 
@@ -195,7 +201,14 @@ def muxry_cz(circuit:qiskit.QuantumCircuit,
 
 
 def vec_mag_angles(complex_vector:numpy.ndarray):
-    norm_vector = complex_vector / numpy.abs(complex_vector)
+    norm_vector = numpy.array(complex_vector)
+    for i in range(len(complex_vector)):
+        entry_norm = numpy.abs(complex_vector[i])
+        if entry_norm > ATOL:
+            norm_vector[i] = complex_vector[i]
+
+        else:
+            norm_vector[i] = 0
     return numpy.abs(complex_vector), numpy.angle(norm_vector)
 
 def alphaz_angle(vec_omega, j,k):
@@ -231,6 +244,8 @@ def alphay_angle(vec_amag, j, k):
         ind2 = (j-1)*2**k+l
         tmp2_sum += vec_amag[ind2-1]**2
 
+    if numpy.abs(tmp2_sum) < ATOL:
+        return 0
     return 2* numpy.arcsin( numpy.sqrt(tmp1_sum)/numpy.sqrt(tmp2_sum) )
 
 
@@ -317,7 +332,7 @@ if __name__ == "__main__":
 
     if test_state_prep:
         for n in range(1,8):
-            for _ in range(5):
+            for _ in range(3):
                 print("\n\n\n")
                 print("-"*50)
                 print(f"Complex State Prep Test case: Random {n}-qubit")
@@ -329,12 +344,18 @@ if __name__ == "__main__":
                 print("  - State to Prepare", psi)
 
                 ## Standard Answer from Qiskit, using isometry
-                print("  \nQiskit State Preparation (isometry? column by column decomposition)")
+                print("  \nQiskit State Preparation (isometry, column by column decomposition)")
                 qiscirc = QuantumCircuit(n)
-                qiscirc.initialize(psi)
+                # qiscirc.initialize(psi)
+                qis_prep_isometry = qiskit.circuit.library.StatePreparation(psi)
+                qiscirc.append(qis_prep_isometry, list(range(n)))
 
                 qiscirc_trans = transpile(qiscirc, basis_gates=['rz','ry','rx', 'cx'], optimization_level=0)
-                qiscirc_trans_opt = transpile(qiscirc, basis_gates=['rz','ry','rx', 'cx'], optimization_level=3)
+                qiscirc_trans_opt = transpile(qiscirc, basis_gates=['rz','ry','rx', 'cx'], optimization_level=2)
+                qis_op_dict = dict(qiscirc_trans.count_ops())
+                qis_op_dict_opt = dict(qiscirc_trans_opt.count_ops()) 
+                print("    - Theoretical SP upper bound (Schmidt Decomposition): ", 23/24 * (2**n)) ## https://journals.aps.org/pra/pdf/10.1103/PhysRevA.93.032318
+                print("    - Theoretical SP lower bound (Schmidt Decomposition): ", 12/24 * 2**n) ## https://journals.aps.org/pra/pdf/10.1103/PhysRevA.93.032318
                 print("    - Qiskit Initialize Circuit Op Count", dict(qiscirc_trans.count_ops()) )
                 print("    - Qiskit Initialize Optimized Circuit Op Count", dict(qiscirc_trans_opt.count_ops()) )
 
@@ -346,17 +367,24 @@ if __name__ == "__main__":
                 my_ucr_circuit = my_ucr_circuit.reverse_bits() ## Hi, not gonna follow qiskit rule in my implementation
 
                 my_ucr_circuit_trans = transpile(my_ucr_circuit, basis_gates=['rz','ry','rx', 'cx'], optimization_level=0)
-                my_ucr_circuit_trans_opt = transpile(my_ucr_circuit, basis_gates=['rz','ry','rx', 'cx'], optimization_level=3)
-                print("    - Theoretical UCR lower bound: ", 2**(n+1) - 2*n) ## See https://arxiv.org/pdf/quant-ph/0406176 from  https://github.com/Qiskit/qiskit-tutorials/blob/master/tutorials/circuits/3_summary_of_quantum_operations.ipynb
+                my_ucr_circuit_trans_opt = transpile(my_ucr_circuit, basis_gates=['rz','ry','rx', 'cx'], optimization_level=2)
+                ucr_op_dict = dict(my_ucr_circuit_trans.count_ops())
+                ucr_op_dict_opt = dict(my_ucr_circuit_trans_opt.count_ops())
+                print("    - Theoretical UCR lower bound: ", 2*(2**n) - 2*n) ## See https://arxiv.org/pdf/quant-ph/0406176 from  https://github.com/Qiskit/qiskit-tutorials/blob/master/tutorials/circuits/3_summary_of_quantum_operations.ipynb
                 print("    - UCR Direct Op Count", dict(my_ucr_circuit.count_ops()) )
                 print("    - UCR Transpile Op Count", dict(my_ucr_circuit_trans.count_ops()) )
                 print("    - UCR Optimized Op Count", dict(my_ucr_circuit_trans_opt.count_ops()) )
                 print("    - UCR State Prep error", numpy.linalg.norm(qiskit.quantum_info.Statevector(my_ucr_circuit).data-psi) )
 
+
+                
                 print(f"\n>>>>UCR State Prep error = {numpy.linalg.norm(qiskit.quantum_info.Statevector(my_ucr_circuit).data-psi)}<<<<")
                 print(f">>>>Qiskit State Prep error = {numpy.linalg.norm(qiskit.quantum_info.Statevector(qiscirc).data-psi)}<<<<")
                 if n>1:
-                    print(f">>>>CX Summary: Qiskit={dict(qiscirc_trans.count_ops())['cx']}, UCR={dict(my_ucr_circuit_trans.count_ops())['cx']}, UC_opt={dict(my_ucr_circuit_trans_opt.count_ops())['cx']}<<<<")
+                    print(f">>>>Depth Summary: Qiskit={qiscirc_trans.depth()}, Qiskit_opt={qiscirc_trans_opt.depth()}, UCR={my_ucr_circuit_trans.depth()}, UC_opt={my_ucr_circuit_trans.depth()}<<<<")
+                    print(f">>>>CX Summary: Qiskit={qis_op_dict['cx']}, UCR={ucr_op_dict['cx']}, UC_opt={ucr_op_dict_opt['cx']}<<<<")
+                    print(f">>>>Total Gates Summary: Qiskit={numpy.sum( list(qis_op_dict.values()) )}, Qiskit_opt={numpy.sum(list(qis_op_dict_opt.values()))}, UCR={numpy.sum( list(ucr_op_dict.values()) )},UCR={numpy.sum( list(ucr_op_dict_opt.values()) )}")
+                assert(numpy.linalg.norm(qiskit.quantum_info.Statevector(my_ucr_circuit).data-psi) < 1e-12)
 
 
     ##########################################################################################################
@@ -365,7 +393,7 @@ if __name__ == "__main__":
 
     if test_unitary_synth:
         for n in range(1,8):
-            for _ in range(5):
+            for _ in range(3):
                 print("\n\n\n")
                 print("-"*50)
                 print(f"Unitary Synthesis Test case: Random {n}-qubit")
@@ -381,7 +409,7 @@ if __name__ == "__main__":
                 qiscirc_mat = Operator(qiscirc).data
 
                 qiscirc_trans = transpile(qiscirc, basis_gates=['rz','ry','rx', 'cx'], optimization_level=0)
-                qiscirc_trans_opt = transpile(qiscirc, basis_gates=['rz','ry','rx', 'cx'], optimization_level=3)
+                qiscirc_trans_opt = transpile(qiscirc, basis_gates=['rz','ry','rx', 'cx'], optimization_level=2)
                 print("    - Qiskit Unitary Circuit Op Count", dict(qiscirc_trans.count_ops()) )
                 print("    - Qiskit Unitary Optimized Circuit Op Count", dict(qiscirc_trans_opt.count_ops()) )
                 print("    - Qiskit Unitary error", numpy.linalg.norm(qiscirc_mat - U) )
@@ -396,7 +424,7 @@ if __name__ == "__main__":
                 my_circ_mat = Operator(my_circuit).data
 
                 my_circuit_trans = transpile(my_circuit, basis_gates=['rz','ry','rx', 'cx'], optimization_level=0)
-                my_circuit_trans_opt = transpile(my_circuit, basis_gates=['rz','ry','rx', 'cx'], optimization_level=3)
+                my_circuit_trans_opt = transpile(my_circuit, basis_gates=['rz','ry','rx', 'cx'], optimization_level=2)
 
                 print("    - Theoretical CX lower bound: ", 0.25*(4**n-3*n-1))
                 print("    - QSD l=1 lower bound", (3/4)*4**n - 1.5*(2**n))
@@ -408,14 +436,15 @@ if __name__ == "__main__":
                 print("    - QSD Transpile Op Count", dict(my_circuit_trans.count_ops()) )
                 print("    - QSD Optimized Op Count", dict(my_circuit_trans_opt.count_ops()) )
                 print("    - QSD Unitary error", numpy.linalg.norm(my_circ_mat - U) )
+
                 
-            
                 print(f"\n>>>>QSD Unitary error = {numpy.linalg.norm(my_circ_mat - U)}<<<<")
                 print(f">>>>Qiskit Unitary error = {numpy.linalg.norm(qiscirc_mat - U)}<<<<")
                 if n>1:
+                    print(f">>>>Depth Summary: Qiskit={qiscirc_trans.depth()}, Qiskit_opt={qiscirc_trans_opt.depth()}, QAS={my_circuit_trans.depth()}, QSD_opt={my_circuit_trans_opt.depth()}<<<<")
                     print(f">>>>CX Summary: Qiskit={dict(qiscirc_trans.count_ops())['cx']}, QSD={dict(my_circuit_trans.count_ops())['cx']}, QSD_opt={dict(my_circuit_trans_opt.count_ops())['cx']}<<<<")
-
-
+                    print(f">>>>Total Gates Summary: Qiskit={numpy.sum(list(dict(qiscirc_trans.count_ops()).values()))}, Qiskit_opt={numpy.sum(list(dict(qiscirc_trans_opt.count_ops()).values()))}, QSD={numpy.sum(list(dict(my_circuit_trans.count_ops()).values()))},QSD={numpy.sum(list(dict(my_circuit_trans_opt.count_ops()).values() ))}")
+                assert(numpy.linalg.norm(my_circ_mat - U) < 1e-12)
 
 
 

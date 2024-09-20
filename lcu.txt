@@ -1,0 +1,175 @@
+
+
+
+
+--------------------------------------------------
+LCU 2^n terms Test case: Random 1-qubit, Qiskit API is False
+----------
+  Normalized Coefficients: [-0.15607434-0.26286112j  0.66262052+0.20731727j]
+  LCU-Oracle: num_qubits_control= 1 num_qubits_op= 1
+
+  Gates OrderedDict({'rz': 7, 'ry': 6, 'cx': 2, 'rx': 1})
+  Depth 10
+
+  >>>>>>Error: 3.5009395317984527e-16<<<<<<
+
+----------
+  Normalized Coefficients: [ 0.3122852 -0.34849509j -0.07376114+0.52691906j]
+  LCU-Oracle: num_qubits_control= 1 num_qubits_op= 1
+
+  Gates OrderedDict({'rz': 7, 'ry': 6, 'cx': 2, 'rx': 1})
+  Depth 10
+
+  >>>>>>Error: 4.765432171927223e-16<<<<<<
+
+----------
+  Normalized Coefficients: [0.38026175-0.16435838j 0.1603734 +0.56335588j]
+  LCU-Oracle: num_qubits_control= 1 num_qubits_op= 1
+
+  Gates OrderedDict({'rz': 7, 'ry': 6, 'cx': 2, 'rx': 1})
+  Depth 10
+
+  >>>>>>Error: 3.345919914245716e-16<<<<<<
+
+
+
+
+
+--------------------------------------------------
+LCU 2^n terms Test case: Random 2-qubit, Qiskit API is False
+----------
+  Normalized Coefficients: [-0.07769433+0.12726829j  0.25556789-0.13466528j -0.14150445-0.26291922j
+ -0.0871138 -0.24861342j]
+  LCU-Oracle: num_qubits_control= 2 num_qubits_op= 2
+
+  Gates OrderedDict({'rz': 957, 'cx': 908, 'ry': 203, 'rx': 18})
+  Depth 1665
+
+  >>>>>>Error: 1.235304724465185e-14<<<<<<
+
+----------
+  Normalized Coefficients: [-0.22636412-0.13130489j  0.23373394-0.13454415j  0.10071256+0.1767814j
+ -0.26259365+0.03681134j]
+  LCU-Oracle: num_qubits_control= 2 num_qubits_op= 2
+
+  Gates OrderedDict({'rz': 963, 'cx': 908, 'ry': 206, 'rx': 18})
+  Depth 1674
+
+  >>>>>>Error: 8.907658116120351e-15<<<<<<
+
+----------
+  Normalized Coefficients: [-0.21518537-0.16772228j -0.15546363-0.05591827j -0.25529019+0.24121842j
+ -0.14724875+0.15074977j]
+  LCU-Oracle: num_qubits_control= 2 num_qubits_op= 2
+
+  Gates OrderedDict({'rz': 954, 'cx': 896, 'ry': 211, 'rx': 20})
+  Depth 1658
+
+  >>>>>>Error: 8.287172297556326e-15<<<<<<
+
+
+
+
+
+--------------------------------------------------
+LCU 2^n terms Test case: Random 3-qubit, Qiskit API is False
+----------
+  Normalized Coefficients: [ 0.10731373+0.03405534j  0.08879221-0.05953582j -0.15115709+0.02679399j
+ -0.04636484-0.07647783j  0.1433816 +0.14522689j -0.04110944-0.1753692j
+ -0.00111962-0.0194293j  -0.12671612+0.04325006j]
+  LCU-Oracle: num_qubits_control= 3 num_qubits_op= 3
+
+  Gates OrderedDict({'cx': 26060, 'rz': 22179, 'ry': 8537, 'rx': 101})
+  Depth 42760
+
+  >>>>>>Error: 1.5961630521256351e-13<<<<<<
+
+----------
+  Normalized Coefficients: [ 0.05360988-0.11712559j  0.08587059-0.00679586j -0.09431917+0.11340853j
+ -0.12378036-0.04235672j -0.12661331-0.06481118j -0.07218065+0.01718956j
+ -0.12504006-0.06610623j -0.09266193-0.11648083j]
+  LCU-Oracle: num_qubits_control= 3 num_qubits_op= 3
+
+  Gates OrderedDict({'cx': 26060, 'rz': 22179, 'ry': 8537, 'rx': 101})
+  Depth 42760
+
+  >>>>>>Error: 1.1988800739367213e-13<<<<<<
+
+----------
+  Normalized Coefficients: [ 0.13265768-0.12700001j  0.11016229-0.07547312j  0.08360994+0.07391793j
+  0.03822998+0.0075415j   0.09361313+0.06026253j  0.11273176+0.00308381j
+ -0.11016587+0.07289997j  0.11759318+0.13100278j]
+  LCU-Oracle: num_qubits_control= 3 num_qubits_op= 3
+
+  Gates OrderedDict({'cx': 26048, 'rz': 22171, 'ry': 8545, 'rx': 103})
+  Depth 42744
+
+  >>>>>>Error: 1.543717557807855e-13<<<<<<
+
+==================================================
+
+
+
+
+--------------------------------------------------
+LCU 3 terms Test case: Random 3-qubit, Qiskit API is False
+----------
+  Normalized Coefficients: [ 0.00885796-0.15807332j -0.49734962-0.29408882j  0.25471526+0.06896183j]
+  LCU-Oracle: num_qubits_control= 2 num_qubits_op= 3
+
+  Gates OrderedDict({'rz': 3788, 'cx': 3620, 'ry': 885, 'rx': 85})
+  Depth 6742
+
+  >>>>>>Error: 2.703193052959624e-14<<<<<<
+
+----------
+  Normalized Coefficients: [0.12954113+0.40059887j 0.36664959+0.27481103j 0.01219919+0.12015299j]
+  LCU-Oracle: num_qubits_control= 2 num_qubits_op= 3
+
+  Gates OrderedDict({'rz': 3798, 'cx': 3626, 'ry': 880, 'rx': 84})
+  Depth 6757
+
+  >>>>>>Error: 1.653506464697391e-14<<<<<<
+
+----------
+  Normalized Coefficients: [ 0.05569152-0.30083855j  0.29998383-0.24123475j -0.15129205+0.2695462j ]
+  LCU-Oracle: num_qubits_control= 2 num_qubits_op= 3
+
+  Gates OrderedDict({'rz': 3793, 'cx': 3626, 'ry': 879, 'rx': 84})
+  Depth 6753
+
+  >>>>>>Error: 3.0766270949463867e-14<<<<<<
+
+
+
+
+
+--------------------------------------------------
+LCU 3 terms Test case: Random 4-qubit, Qiskit API is False
+----------
+  Normalized Coefficients: [ 0.26898557+0.17836888j -0.14348477+0.26491306j  0.27371361-0.25775282j]
+  LCU-Oracle: num_qubits_control= 2 num_qubits_op= 4
+
+  Gates OrderedDict({'rz': 17231, 'cx': 16445, 'ry': 4166, 'rx': 405})
+  Depth 30831
+
+  >>>>>>Error: 1.5755784035050867e-13<<<<<<
+
+----------
+  Normalized Coefficients: [-0.02483652-0.35546862j -0.28369702+0.05765886j  0.20583634-0.28821203j]
+  LCU-Oracle: num_qubits_control= 2 num_qubits_op= 4
+
+  Gates OrderedDict({'rz': 17221, 'cx': 16433, 'ry': 4171, 'rx': 407})
+  Depth 30829
+
+  >>>>>>Error: 1.0442143333004238e-13<<<<<<
+
+----------
+  Normalized Coefficients: [ 0.1154191 +0.40406299j  0.14943266+0.31246371j -0.22844749-0.0479133j ]
+  LCU-Oracle: num_qubits_control= 2 num_qubits_op= 4
+
+  Gates OrderedDict({'rz': 17237, 'cx': 16451, 'ry': 4159, 'rx': 404})
+  Depth 30855
+
+  >>>>>>Error: 2.501276925252249e-13<<<<<<
+

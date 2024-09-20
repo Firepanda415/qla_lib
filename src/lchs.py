@@ -230,7 +230,7 @@ def utk(tT, k, L, H):
 
 # LCHS but in Classical Operations
 ## Homogenous Part of the Solution
-def class_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsilon:float, trunc_multiplier=2, verbose=False) -> tuple[numpy.matrix,numpy.matrix]: 
+def class_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsilon:float, trunc_multiplier:float=2.0, verbose:int=0) -> tuple[numpy.matrix,numpy.matrix]: 
     '''
     Solve Homogeneous IVP du/dt = -Au(t) with u(0) = u0
     Input:
@@ -252,7 +252,7 @@ def class_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
     ##
     kh1 = int(K/h1)
     M = int(2*kh1*Q) ## number of nodes in total, (65) in [1] ## just for checking
-    if verbose:
+    if verbose>1:
         print("  Preset parameters T = ", tT, "beta = ", beta, "epsilon = ", epsilon)
         print("  Truncation range [-K,K] K =", K)
         print("  Step size h1 =", h1)
@@ -269,7 +269,7 @@ def class_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
             cqm = wqs[qi]*gk(beta, kqms[qi])
             c_sum += numpy.abs(cqm)
             res_mat += cqm* utk(tT, kqms[qi], L, H)  ## w_q*g(k_{q,m})*U(T, k_{q,m}) ## (61) in [1] (This should be quantum)
-    if verbose:
+    if verbose>1:
         print("  ||c||_1 =", c_sum)
     u0_norm = u0/numpy.linalg.norm(u0,ord=2)
     uT = res_mat.dot(u0_norm)
@@ -277,7 +277,7 @@ def class_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
 
 
 ## Inhomogenous Part of the Solution
-def class_lchs_tips(A:numpy.matrix, u0:numpy.matrix, func_bt:Callable[[complex],complex], tT:float, beta:float, epsilon:float, trunc_multiplier=2, verbose=False): 
+def class_lchs_tips(A:numpy.matrix, u0:numpy.matrix, func_bt:Callable[[complex],complex], tT:float, beta:float, epsilon:float, trunc_multiplier:float=2.0, verbose:int=0): 
     '''
     Solve Inhomogeneous IVP du/dt = -Au(t)+b(t) with u(0) = u0, where b(t) is a user-defined function return the evluation of b(t) at time t
     Input:
@@ -308,7 +308,7 @@ def class_lchs_tips(A:numpy.matrix, u0:numpy.matrix, func_bt:Callable[[complex],
     M = int(2*kh1*Q1)
     Mp = int(Th2*Q2)
 
-    if verbose:
+    if verbose>0:
         print("  Preset parameters T = ", tT, "beta = ", beta, "epsilon = ", epsilon)
         print("  Truncation range [-K,K] K =", K)
         print("  Step size h1 =", h1)
@@ -339,7 +339,7 @@ def class_lchs_tips(A:numpy.matrix, u0:numpy.matrix, func_bt:Callable[[complex],
                     basqm_norm = bsqm/numpy.linalg.norm(bsqm, ord=2)
                     print("Progress: ", f"{munshit}/{2*kh1}",f"{m2}/{Th2}", end="\r")
                     res_vec += c2qm*c1qm* (utsk(tT,sqms[qi2],kqms[qi],L,H).dot(basqm_norm))  ## This should be quantum
-    if verbose:
+    if verbose>0:
         print()
         print("  ||c||_1 =", c_sum)
     return res_vec
@@ -353,7 +353,7 @@ def class_lchs_tips(A:numpy.matrix, u0:numpy.matrix, func_bt:Callable[[complex],
 # LCHS only LCU is in Quantum Circuit
 ## Homogenous Part of the Solution
 
-def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsilon:float, trunc_multiplier=2, verbose=False) -> tuple[numpy.matrix,numpy.matrix]: 
+def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsilon:float, trunc_multiplier=2, qiskit_api:bool=False, verbose:int=0) -> tuple[numpy.matrix,numpy.matrix]: 
     '''
     Solve Homogeneous IVP du/dt = -Au(t) with u(0) = u0
     Input:
@@ -368,7 +368,7 @@ def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
     - res_mat: numpy matrix, the matrix representation of the solution operator (summation of all unitaties)
     - uT: numpy matrix, the solution state at time tT, uT = res_mat*u0
     '''
-    from lcu import lcu_generator,qiskit_to_normal_order
+    from lcu import lcu_generator, qiskit_normal_order_switch
     ##
     L,H = cart_decomp(A)
     h1 = step_size_h1(tT, L)  ## step size h1 for [-K, K], (65) in [1]
@@ -394,21 +394,25 @@ def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
         for qi in range(Q):
             cqm = wqs[qi]*gk(beta, kqms[qi])
             c_sum += numpy.abs(cqm)
+            umat = utk(tT, kqms[qi], L, H)
             ## Collect coeffs and unitaries for w_q*g(k_{q,m})*U(T, k_{q,m}) ## (61) in [1] (This should be quantum)
+            if numpy.abs(numpy.angle(cqm)) > 1e-12:
+                cqm = cqm/numpy.exp(1j*numpy.angle(cqm)) ## absorb the phase to the unitaries
+                umat = numpy.exp(1j*numpy.angle(cqm))*umat
             coeffs.append(cqm)
-            unitaries.append(utk(tT, kqms[qi], L, H))
-    if verbose:
+            unitaries.append(umat)
+    if verbose > 0:
         print("  ||c||_1 =", c_sum)
 
     ## Obtain the linear combination by LCU
-    lcu_circ = lcu_generator(coeffs, unitaries)
-    trans_lcu = qiskit.transpile(lcu_circ, basis_gates=['cz', 'rz', 'sx', 'x', 'id'], optimization_level=1)
-    if verbose:
+    lcu_circ = lcu_generator(coeffs, unitaries, qiskit_api=qiskit_api) ## NOTE: the return circuit is in qiskit order
+    trans_lcu = qiskit.transpile(lcu_circ, basis_gates=['cx', 'rz', 'ry', 'rx'], optimization_level=2)
+    if verbose > 0:
         print("  \nTranspiled LCU Circ Stats\n ", trans_lcu.count_ops())
         print("  Number of Qubits:", trans_lcu.num_qubits)
         print("  Circuit Depth:", trans_lcu.depth())
-    circ_op = qiskit_to_normal_order(qiskit.quantum_info.Operator(lcu_circ).data)
-    sum_op = circ_op[:unitaries[0].shape[0],:unitaries[0].shape[1]]
+    circ_op = qiskit.quantum_info.Operator( lcu_circ ).data ## LCU has reversed qubits
+    sum_op = qiskit_normal_order_switch( circ_op[:unitaries[0].shape[0],:unitaries[0].shape[1]] ) ## See lcu_generator use case example
     ## Compute u0
     u0_norm = u0/numpy.linalg.norm(u0,ord=2)
     uT = sum_op.dot(u0_norm)
@@ -431,17 +435,18 @@ def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
 if __name__ == "__main__":
     ###----------------------------------------------------------------------------------------------------------------
     ## Problem Dimension
-    dim = 2
+    dim = 8
+    ## Define random A and u0
+    rng = numpy.random.Generator(numpy.random.PCG64(726348874394184524479665820111))
+    ## Random numpy
+    A = (numpy.matrix(rng.random((dim,dim)),dtype=complex)-0.5) + 2*numpy.identity(dim) + 1j*(numpy.matrix(rng.random((dim,dim)),dtype=complex)-0.5)
+    A = 0.1*A
     ## Define b(t) and its first derivative as functions
     def bt(t):
         ## dtype complex is necessary for scipy to compute complex integral
         # return 0.1*numpy.array([ 1*t+1j, 1, 3j*t, (2+1j)*t],dtype=complex).reshape(-1,1) 
-        return 0.1*numpy.array([ 1*t+1j, 1],dtype=complex).reshape(-1,1) 
-    ## Define random A and u0
-    rng = numpy.random.Generator(numpy.random.PCG64(15817))
-    ## Random numpy
-    A = numpy.matrix(rng.random((dim,dim)),dtype=complex) + 2*numpy.identity(dim) + 1j*numpy.matrix(rng.random((dim,dim)),dtype=complex) 
-    A = 0.1*A
+        # return 0.1*numpy.array([ -0.3*t+1j, 0.5-0.1j],dtype=complex).reshape(-1,1) 
+        return rng.random((dim,1))-0.5 + 1j*(rng.random((dim,1))-0.5)
     ## Random initial state
     u0 = numpy.matrix( rng.random((dim,1)) ,dtype=complex) ## dtype complex is necessary for scipy to compute complex integral
     u0 = u0/numpy.linalg.norm(u0, ord=2)
@@ -451,8 +456,9 @@ if __name__ == "__main__":
     beta = 0.9 # 0< beta < 1
     epsilon = 1e-1
     tests_class_ho = True
-    tests_class_inho = True
-    tests_quant = True
+    tests_class_inho = False
+    tests_quant_qis = True
+    tests_quant_my = True
 
 
     ### Quick check for eigenvalues
@@ -472,10 +478,36 @@ if __name__ == "__main__":
     spi_sol_inho = scipy.integrate.solve_ivp(ode_func_inho, [0,T],numpy.array(u0.reshape(-1))[0], method='RK45')
     spi_sol_ps = spi_sol_inho.y[:,-1] - spi_sol_ho.y[:,-1] ## subtract homogeneous solution
     spi_sol_ps_norm = spi_sol_ps/numpy.linalg.norm(spi_sol_ps,ord=2)
+
+
     ###----------------------------------------------------------------------------------------------------------------
-    if tests_quant:
-        print("\n\nTests with Quantum Subroutine")
-        quant_exp_op, quant_uT, lchs_circ_ho = quant_lchs_tihs(A, u0, T, beta, epsilon, trunc_multiplier=2, verbose=True)
+    print("="*60)
+
+    if tests_quant_my:
+        print("\n\nTests with Quantum Subroutine (My Implementation)")
+        quant_exp_op, quant_uT, lchs_circ_ho = quant_lchs_tihs(A, u0, T, beta, epsilon, trunc_multiplier=2, qiskit_api=False, verbose=1)
+        # qiskit.qasm2.dump(lchs_circ_ho, f"./lchs_ho_Asize{A.shape[0]}.qasm")
+
+        quant_uT = numpy.array(quant_uT).reshape(-1)
+        quant_uT_norm = quant_uT/numpy.linalg.norm(quant_uT,ord=2)
+        if numpy.linalg.norm(quant_uT.imag,ord=2) < 1e-12:
+            quant_uT = quant_uT.real
+        if numpy.linalg.norm(quant_uT_norm.imag,ord=2) < 1e-12:
+            quant_uT_norm = quant_uT_norm.real
+
+        quant_uT_err = numpy.linalg.norm(quant_uT - spi_uT_ho,ord=2)
+        quant_uT_err_norm = numpy.linalg.norm(quant_uT_norm - spi_uT_ho_norm,ord=2)
+        print("  Homogeneous u(T)=", quant_uT)
+        print("  SciPy Sol   u(T)=", spi_uT_ho, "  Norm=", numpy.linalg.norm(spi_uT_ho,ord=2))
+        print("  Homogeneous u(T)/||u(T)||=", quant_uT_norm)
+        print("  SciPy Sol   u(T)/||u(T)||=", spi_uT_ho, "  Norm=", numpy.linalg.norm(spi_uT_ho,ord=2))
+        print("  Homogeneous solution error u(T)         :", quant_uT_err, "   Relative error:", quant_uT_err/numpy.linalg.norm(spi_uT_ho,ord=2))
+        print("  Homogeneous solution error u(T)/||u(T)||:", quant_uT_err_norm, "     Relative error:", quant_uT_err_norm/numpy.linalg.norm(spi_uT_ho_norm,ord=2))
+
+
+    if tests_quant_qis:
+        print("\n\nTests with Quantum Subroutine (Qiskit API)")
+        quant_exp_op, quant_uT, lchs_circ_ho = quant_lchs_tihs(A, u0, T, beta, epsilon, trunc_multiplier=2, qiskit_api=True, verbose=1)
         # qiskit.qasm2.dump(lchs_circ_ho, f"./lchs_ho_Asize{A.shape[0]}.qasm")
         quant_uT = numpy.array(quant_uT).reshape(-1)
         quant_uT_norm = quant_uT/numpy.linalg.norm(quant_uT,ord=2)
@@ -494,11 +526,14 @@ if __name__ == "__main__":
 
 
 
+    
+
     ###----------------------------------------------------------------------------------------------------------------
+    print("="*60)
     if tests_class_ho:
         print("\n\nTests with Classical Subroutine (Homogeneous)")
         ## Solve homogenous part
-        exp_op, uT = class_lchs_tihs(A, u0, T, beta, epsilon, trunc_multiplier=2, verbose=True)
+        exp_op, uT = class_lchs_tihs(A, u0, T, beta, epsilon, trunc_multiplier=2, verbose=1)
         uT = numpy.array(uT).reshape(-1)
         uT_norm = uT/numpy.linalg.norm(uT,ord=2)
         if numpy.linalg.norm(uT.imag,ord=2) < 1e-12:
@@ -517,7 +552,7 @@ if __name__ == "__main__":
     if tests_class_inho:
         ## solve inhomogenous part
         print("\n\nTests with Classical Subroutine (Inhomogeneous)")
-        uT_inho = class_lchs_tips(A, u0, bt, T, beta, epsilon, trunc_multiplier=2, verbose=True)
+        uT_inho = class_lchs_tips(A, u0, bt, T, beta, epsilon, trunc_multiplier=2, verbose=1)
         uT_inho = numpy.array(uT_inho).reshape(-1)
         uT_inho_norm = uT_inho/numpy.linalg.norm(uT_inho,ord=2)
         if numpy.linalg.norm(uT_inho.imag,ord=2) < 1e-12:
