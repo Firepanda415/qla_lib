@@ -435,7 +435,7 @@ def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
 if __name__ == "__main__":
     ###----------------------------------------------------------------------------------------------------------------
     ## Problem Dimension
-    dim = 8
+    dim = 4
     ## Define random A and u0
     rng = numpy.random.Generator(numpy.random.PCG64(726348874394184524479665820111))
     ## Random numpy
@@ -455,7 +455,7 @@ if __name__ == "__main__":
     T = 1
     beta = 0.9 # 0< beta < 1
     epsilon = 1e-1
-    tests_class_ho = True
+    tests_class_ho = False
     tests_class_inho = False
     tests_quant_qis = True
     tests_quant_my = True

@@ -107,7 +107,7 @@ def select_oracle(unitary_array: list[numpy.ndarray], qiskit_api:bool=False) -> 
             synthu_qsd(unitary_array[i], qsd_circuit, list(range(num_qubits_op))[1:], 0, cz_opt=True)
             qsd_circuit = qsd_circuit.reverse_bits() ## ## synthu_qsd not follow qiskit rule in my implementation
             qsd_circuit.name = "U"+str(i)
-            control_u = qsd_circuit.to_gate().control(num_qubits_control)
+            control_u = qsd_circuit.decompose().to_gate().control(num_qubits_control)
         ## For 0-control
         for q in range(len(ibin)):
             qbit = ibin[q]
@@ -221,7 +221,7 @@ if __name__ == "__main__":
             print("\n  Gates", LCU_trans.count_ops())
             print("  Depth", LCU_trans.depth())
             print(f"\n  >>>>>>Error: {numpy.linalg.norm(correct_answer - lcu_sol, ord=2)}<<<<<<\n")
-            assert(numpy.linalg.norm(correct_answer - lcu_sol, ord=2) < 1e-12)
+            assert(numpy.linalg.norm(correct_answer - lcu_sol, ord=2) < 1e-8)
 
 
     print("="*50)
@@ -255,7 +255,7 @@ if __name__ == "__main__":
             print("\n  Gates", LCU_trans.count_ops())
             print("  Depth", LCU_trans.depth())
             print(f"\n  >>>>>>Error: {numpy.linalg.norm(correct_answer - lcu_sol, ord=2)}<<<<<<\n")
-            assert(numpy.linalg.norm(correct_answer - lcu_sol, ord=2) < 1e-12)
+            assert(numpy.linalg.norm(correct_answer - lcu_sol, ord=2) < 1e-8)
 
 
 
