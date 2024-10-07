@@ -41,18 +41,19 @@ def synthu_1q(circuit:qiskit.QuantumCircuit, matrix:numpy.ndarray, qubit:int, de
     lamb = RHS1 - phi
     if debug:
         print("DEBUG-angles(theta, phi, lambda)", theta, phi, lamb)
+    #
+    if debug:
+        q1_circ = qiskit.QuantumCircuit(1)
+        q1_circ.name = "1q U"
+        global_phase_gate(q1_circ, numpy.angle(numpy.conj(mat_expphase)), 0, no_gate=True)
+        q1_circ.rz(lamb, 0)
+        q1_circ.ry(theta, 0)
+        q1_circ.rz(phi, 0)
+        ## Verify the decomposition
+        if not numpy.allclose(qiskit.quantum_info.Operator(q1_circ).data, matrix):
+            raise ValueError("Error on 1-qubit circuit:", numpy.linalg.norm( qiskit.quantum_info.Operator(q1_circ).data-matrix))
     ##
-    # q1_circ = qiskit.QuantumCircuit(1)
-    # q1_circ.name = "1q U"
-    # global_phase_gate(q1_circ, numpy.angle(numpy.conj(mat_expphase)), 0)
-    # q1_circ.rz(lamb, 0)
-    # q1_circ.ry(theta, 0)
-    # q1_circ.rz(phi, 0)
-    # ## Verify the decomposition
-    # if not numpy.allclose(qiskit.quantum_info.Operator(q1_circ).data, matrix):
-    #     raise ValueError("Error on 1-qubit circuit:", numpy.linalg.norm( qiskit.quantum_info.Operator(q1_circ).data-matrix))
-    # ##
-    global_phase_gate(circuit, numpy.angle(numpy.conj(mat_expphase)), qubit)
+    global_phase_gate(circuit, numpy.angle(numpy.conj(mat_expphase)), qubit, no_gate=True)
     circuit.rz(lamb, qubit)
     circuit.ry(theta, qubit)
     circuit.rz(phi, qubit)
@@ -232,7 +233,7 @@ def synthu_kak(circuit:qiskit.QuantumCircuit, matrix:numpy.ndarray, qubits:list[
     ##
     kak_circ = qiskit.QuantumCircuit(2)
     kak_circ.name = "2q U"
-    global_phase_gate(kak_circ, phase_angle+numpy.pi/4, 0)
+    global_phase_gate(kak_circ, phase_angle+numpy.pi/4, 0, no_gate=True)
     ## As Right side of the equation comes first in the circuit
     # kak_circ.unitary(K2l, 0)
     synthu_1q(kak_circ, K2l, 0)
@@ -544,7 +545,7 @@ def stateprep_ucr(init_state:numpy.ndarray, circuit:qiskit.QuantumCircuit, debug
     psi_mag, psi_angles = vec_mag_angles(init_state)
 
     ## Circuit
-    global_phase_gate(circuit, numpy.sum(psi_angles)/(2**num_qubits), 0)
+    global_phase_gate(circuit, numpy.sum(psi_angles)/(2**num_qubits), 0, no_gate=True)
 
     # for j in range(1, num_qubits+1):
     #     yangles = alphay_arr(psi_mag, num_qubits-j+1)

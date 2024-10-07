@@ -89,7 +89,7 @@ import qiskit
 
 
 
-#--------------------------------  
+#-------------------------------- Linear Algebra --------------------------------#
 def mat_egh2su(mat):
     """
     Compute the global phase TO MAKE A MATRIX HAS DETERMINANT 1.
@@ -122,122 +122,6 @@ def mat_normdet1(mat: numpy.ndarray) -> numpy.ndarray:
     """
     expphase = mat_egh2su(mat)
     return numpy.array(mat) * expphase
-
-# #--------------------------------   
-# def get_minor(matrix, i, j):
-#     """
-#     Get the minor of the matrix excluding the i-th row and j-th column.
-    
-#     Parameters:
-#     matrix (list of lists): The original matrix.
-#     i (int): Row to exclude (0-based index).
-#     j (int): Column to exclude (0-based index).
-    
-#     Returns:
-#     list of lists: The minor matrix.
-#     """
-#     return [row[:j] + row[j+1:] for idx, row in enumerate(matrix) if idx != i]
-
-# def detm4(matrix):
-#     """
-#     Calculate the determinant of a 4x4 matrix manually using Laplace expansion.
-    
-#     Parameters:
-#     matrix (list of lists): A 4x4 matrix.
-    
-#     Returns:
-#     complex or float: Determinant of the matrix.
-#     """
-#     # Validate matrix dimensions
-#     if len(matrix) != 4 or any(len(row) != 4 for row in matrix):
-#         raise ValueError("The matrix must be 4x4.")
-    
-#     det = 0
-#     for col in range(4):
-#         # Calculate minor for element (0, col)
-#         minor = get_minor(matrix, 0, col)
-        
-#         # Recursive call for 3x3 minor
-#         det_minor = detm3(minor)
-        
-#         # Cofactor sign
-#         sign = (-1) ** (col)
-        
-#         # Add to determinant
-#         det += sign * matrix[0][col] * det_minor
-#     return det
-
-# def detm3(matrix):
-#     """
-#     Calculate the determinant of a 3x3 matrix using Laplace expansion.
-    
-#     Parameters:
-#     matrix (list of lists): A 3x3 matrix.
-    
-#     Returns:
-#     complex or float: Determinant of the matrix.
-#     """
-#     # Base case for 2x2 matrix
-#     if len(matrix) == 2 and len(matrix[0]) == 2:
-#         return matrix[0][0]*matrix[1][1] - matrix[0][1]*matrix[1][0]
-    
-#     det = 0
-#     for col in range(3):
-#         minor = get_minor(matrix, 0, col)
-#         det_minor = detm2(minor)
-#         sign = (-1) ** (col)
-#         det += sign * matrix[0][col] * det_minor
-#     return det
-
-# def detm2(matrix):
-#     """
-#     Calculate the determinant of a 2x2 matrix.
-    
-#     Parameters:
-#     matrix (list of lists): A 2x2 matrix.
-    
-#     Returns:
-#     complex or float: Determinant of the matrix.
-#     """
-#     return matrix[0][0]*matrix[1][1] - matrix[0][1]*matrix[1][0]
-
-# def detm(mat):
-#     """
-#     Calculate the determinant of a square matrix using Laplace expansion.
-    
-#     Parameters:
-#     matrix (list of lists): A square matrix.
-    
-#     Returns:
-#     complex or float: Determinant of the matrix.
-#     """
-#     if type(mat) == numpy.ndarray:
-#         matrix = mat.tolist()
-#     else:
-#         matrix = mat
-
-#     # Base case for 2x2 matrix
-#     if len(matrix) == 2 and len(matrix[0]) == 2:
-#         return detm2(matrix)
-    
-#     # Base case for 3x3 matrix
-#     if len(matrix) == 3 and len(matrix[0]) == 3:
-#         return detm3(matrix)
-    
-#     # Base case for 4x4 matrix
-#     if len(matrix) == 4 and len(matrix[0]) == 4:
-#         return detm4(matrix)
-    
-#     # Recursive case for larger matrices
-#     det = 0
-#     for col in range(len(matrix)):
-#         minor = get_minor(matrix, 0, col)
-#         det_minor = detm(minor)
-#         sign = (-1) ** (col)
-#         det += sign * matrix[0][col] * det_minor
-#     return det
-# #--------------------------------   
-
 
 
 
@@ -282,7 +166,31 @@ def decompose_one_qubit_product(Umat: numpy.ndarray):
 
 
 
-#--------------------------------   
+
+
+
+## ------------------- Different Gates ------------------- ##
+
+
+def global_phase_gate(circuit:qiskit.QuantumCircuit, phase:float, target:int, no_gate:bool=False):
+    """
+    Apply a global phase gate to a quantum circuit (phi in exp(i phi))
+    Ph(theta) = [[ exp(i theta)   0           ] = P(theta)XP(theta)X
+                 [ 0              exp(i theta)]]
+    NOTE  X = [[0 1]  and P(theta) = [[1 0           ]    in Qiskit definition 
+               [1 0]]                 [0 exp(i theta)]]
+    NOTE: usually you don't want a physical gate on this, just add the new global phase to the existing global phase
+    """
+    if no_gate:
+        circuit.global_phase += phase ## do not create phase yet
+    else:
+        circuit.x(target)
+        circuit.p(phase, target)
+        circuit.x(target)
+        circuit.p(phase, target)
+
+
+#-------------------------------- Coding for multiplexer_rot --------------------------------#
 
 ## Binary operations
 def binary_reflected_gray_code(m:int) -> int:
@@ -309,63 +217,6 @@ def binary_inner_product(a: int, b: int) -> int:
         and_result >>= 1
     
     return count
-
-## -------------------
-
-
-def global_phase_gate(circuit:qiskit.QuantumCircuit, phase:float, target:int):
-    """
-    Apply a global phase gate to a quantum circuit
-    Ph(theta) = [[ exp(i theta)   0           ] = P(theta)XP(theta)X
-                 [ 0              exp(i theta)]]
-    NOTE  X = [[0 1]  and P(theta) = [[1 0           ]    in Qiskit definition 
-               [1 0]]                 [0 exp(i theta)]]
-    """
-    circuit.x(target)
-    circuit.p(phase, target)
-    circuit.x(target)
-    circuit.p(phase, target)
-
-# def mat1q_det(uni_mat):
-#     return uni_mat[0,0] * uni_mat[1,1] - uni_mat[0,1] * uni_mat[1,0]
-
-
-## Looks like some bug in the function, some times ry need -theta1, some times +theta1
-# def su1q_gate(circuit:qiskit.QuantumCircuit,unitary:numpy.ndarray, target:int):
-#     """
-#     Apply a single qubit unitary gate to a quantum circuit, ZYZ decomposition
-#     U = exp(i alpha) R_z(theta_2) R_y(theta_1) R_z(theta_0) where exp(i alpha) is the global phase global_phase_gate(alpha)
-#     See Section 4.1 in https://threeplusone.com/pubs/on_gates.pdf
-#     """
-#     m,n = unitary.shape
-#     if m != 2 or n != 2:
-#         raise ValueError("The input matrix should be 2x2, but", unitary.shape, "is given")
-    
-
-#     alpha = 0.5*numpy.arctan2(mat1q_det(unitary).imag, mat1q_det(unitary).real)
-#     # alpha = 0.5*numpy.arctan2(mat1q_det(U).real, mat1q_det(U).imag)
-#     V = numpy.exp(-1j*alpha) * unitary
-#     if numpy.abs(mat1q_det(V) - 1) > 1e-12:
-#         raise ValueError('Invalid global phase, the determinant is', mat1q_det(V))
-#     print(V)
-#     theta1 = 2*numpy.arccos(numpy.abs(V[0,0])) if numpy.abs(V[0,0]) >= numpy.abs(V[0,1]) else 2*numpy.arcsin(numpy.abs(V[0,1]))
-
-#     if numpy.abs(numpy.cos(0.5*theta1)) < 1e-12:
-#         tmp1 = 0
-#     else:
-#         tmp1 = 2 * numpy.arctan2( (V[1,1]/numpy.cos(0.5*theta1)).imag , (V[1,1]/numpy.cos(0.5*theta1)).real )
-#     if numpy.abs(numpy.sin(0.5*theta1)) < 1e-12:
-#         tmp2 = 0
-#     else:
-#         tmp2 = 2 * numpy.arctan2( (V[1,0]/numpy.sin(0.5*theta1)).imag , (V[1,0]/numpy.sin(0.5*theta1)).real )
-#     theta0 = 0.5*(tmp1 + tmp2)
-#     theta2 = 0.5*(tmp1 - tmp2)
-
-#     circuit.rz(theta0, 0)
-#     circuit.ry(theta1, 0)
-#     circuit.rz(theta2, 0)
-#     global_phase_gate(circuit, alpha, 0)
-
 
 
 
@@ -485,12 +336,6 @@ def multiplexer_pauli(circuit:qiskit.QuantumCircuit,
 
 ## Tests
 if __name__ == "__main__":
-
-    ## 
-
-
-
-
     ## Test for multiplexer_pauli
     from qiskit.quantum_info import Operator
     from qiskit.circuit.library import UCPauliRotGate
