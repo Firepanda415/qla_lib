@@ -1,0 +1,141 @@
+====================================================================================  O1 ================================================================================================
+
+Norm of A: 0.3185538847818104, Norm of L: 0.3061547652201219, Norm of H: 0.11414722577298146
+Eigenvalues of L: [0.05683097-1.54318248e-17j 0.30615477-1.79086523e-17j
+ 0.28038074-1.30678247e-18j 0.11542874+1.10897532e-17j
+ 0.2245973 -5.97336385e-18j 0.14763522-2.40796821e-18j
+ 0.19943706+1.19170414e-17j 0.17860415-7.94884719e-19j]
+============================================================
+
+
+Tests with Classical Subroutine (Homogeneous)
+  Homogeneous u(T)= [0.21800407-0.00852304j 0.24746939+0.0148911j  0.20476901+0.01633663j
+ 0.00905983-0.00297624j 0.02473954-0.0019961j  0.48483587-0.01402365j
+ 0.19755377+0.01589406j 0.48186479+0.02777728j]
+  SciPy Sol   u(T)= [0.22694935-0.00623256j 0.26034915+0.01622627j 0.22272406+0.02464742j
+ 0.00328346-0.00489624j 0.03496533-0.00371954j 0.51085415-0.01533915j
+ 0.21060556+0.01826594j 0.51087555+0.02522659j]   Norm= 0.8594185764439081
+  Homogeneous solution error u(T)         : 0.04991757862662147    Relative error: 0.05808296445391002
+============================================================
+
+
+Tests with Quantum Subroutine (My Implementation)
+  Preset parameters T =  1 beta =  0.9 epsilon =  0.1
+  Truncation range [-K,K] K = 7.2096759475281935
+  Step size h1 = 1.2016126579213655
+  Number of nodes in [mh_1, (m+1)h_1] Q = 4
+  Total number of nodes M = 48
+  ||c||_1 = 1.7292513427091303
+/Users/zhen002/miniconda3/envs/qnew/lib/python3.12/site-packages/numpy/linalg/linalg.py:2180: RuntimeWarning: divide by zero encountered in det
+  r = _umath_linalg.det(a, signature=signature)
+/Users/zhen002/miniconda3/envs/qnew/lib/python3.12/site-packages/numpy/linalg/linalg.py:2180: RuntimeWarning: invalid value encountered in det
+  r = _umath_linalg.det(a, signature=signature)
+/Users/zhen002/miniconda3/envs/qnew/lib/python3.12/site-packages/numpy/linalg/linalg.py:2180: RuntimeWarning: divide by zero encountered in det
+  r = _umath_linalg.det(a, signature=signature)
+/Users/zhen002/miniconda3/envs/qnew/lib/python3.12/site-packages/numpy/linalg/linalg.py:2180: RuntimeWarning: invalid value encountered in det
+  r = _umath_linalg.det(a, signature=signature)
+  Number of Qubits: 9
+  
+Transpiled LCU Circ Stats
+  OrderedDict({'rz': 589495, 'cx': 536764, 'ry': 45873, 'rx': 20668})
+  Circuit Depth: 779697
+  Homogeneous u(T)= [ 0.23414076-0.00421984j  0.26799513+0.0124664j   0.24000773+0.03329053j
+ -0.00065967-0.00781268j  0.04240044-0.00625678j  0.53177128-0.0114849j
+  0.22811966+0.0210917j   0.54059018+0.02010597j]
+  SciPy Sol   u(T)= [0.22694935-0.00623256j 0.26034915+0.01622627j 0.22272406+0.02464742j
+ 0.00328346-0.00489624j 0.03496533-0.00371954j 0.51085415-0.01533915j
+ 0.21060556+0.01826594j 0.51087555+0.02522659j]   Norm= 0.8594185764439081
+  Homogeneous solution error u(T)         : 0.04758000094887639    Relative error: 0.05536301198625744
+
+
+Tests with Quantum Trottered Subroutine (My Implementation)
+  Preset parameters T =  1 beta =  0.9 epsilon =  0.1
+  Truncation range [-K,K] K = 7.2096759475281935
+  Step size h1 = 1.2016126579213655
+  Number of nodes in [mh_1, (m+1)h_1] Q = 4
+  Total number of nodes M = 48
+  ||c||_1 = 1.7292513427091303
+  Number of Qubits: 9
+
+
+
+
+
+====================================================================================  O2 ================================================================================================
+Norm of A: 0.3185538847818104, Norm of L: 0.3061547652201219, Norm of H: 0.11414722577298146
+Eigenvalues of L: [0.05683097-1.54318248e-17j 0.30615477-1.79086523e-17j
+ 0.28038074-1.30678247e-18j 0.11542874+1.10897532e-17j
+ 0.2245973 -5.97336385e-18j 0.14763522-2.40796821e-18j
+ 0.19943706+1.19170414e-17j 0.17860415-7.94884719e-19j]
+============================================================
+
+
+Tests with Classical Subroutine (Homogeneous)
+  Homogeneous u(T)= [0.21800407-0.00852304j 0.24746939+0.0148911j  0.20476901+0.01633663j
+ 0.00905983-0.00297624j 0.02473954-0.0019961j  0.48483587-0.01402365j
+ 0.19755377+0.01589406j 0.48186479+0.02777728j]
+  SciPy Sol   u(T)= [0.22694935-0.00623256j 0.26034915+0.01622627j 0.22272406+0.02464742j
+ 0.00328346-0.00489624j 0.03496533-0.00371954j 0.51085415-0.01533915j
+ 0.21060556+0.01826594j 0.51087555+0.02522659j]   Norm= 0.8594185764439081
+  Homogeneous solution error u(T)         : 0.04991757862662149    Relative error: 0.05808296445391005
+============================================================
+
+
+Tests with Quantum Subroutine (My Implementation)
+  Preset parameters T =  1 beta =  0.9 epsilon =  0.1
+  Truncation range [-K,K] K = 7.2096759475281935
+  Step size h1 = 1.2016126579213655
+  Number of nodes in [mh_1, (m+1)h_1] Q = 4
+  Total number of nodes M = 48
+  ||c||_1 = 1.7292513427091303
+/Users/zhen002/miniconda3/envs/qnew/lib/python3.12/site-packages/numpy/linalg/linalg.py:2180: RuntimeWarning: divide by zero encountered in det
+  r = _umath_linalg.det(a, signature=signature)
+/Users/zhen002/miniconda3/envs/qnew/lib/python3.12/site-packages/numpy/linalg/linalg.py:2180: RuntimeWarning: invalid value encountered in det
+  r = _umath_linalg.det(a, signature=signature)
+/Users/zhen002/miniconda3/envs/qnew/lib/python3.12/site-packages/numpy/linalg/linalg.py:2180: RuntimeWarning: divide by zero encountered in det
+  r = _umath_linalg.det(a, signature=signature)
+/Users/zhen002/miniconda3/envs/qnew/lib/python3.12/site-packages/numpy/linalg/linalg.py:2180: RuntimeWarning: invalid value encountered in det
+  r = _umath_linalg.det(a, signature=signature)
+  Number of Qubits: 9
+  
+Transpiled LCU Circ Stats
+  OrderedDict({'rz': 549884, 'cx': 532254, 'ry': 54357, 'rx': 20740})
+  Circuit Depth: 778008
+  Homogeneous u(T)= [ 0.23414076-0.00421984j  0.26799513+0.0124664j   0.24000773+0.03329053j
+ -0.00065967-0.00781268j  0.04240044-0.00625678j  0.53177128-0.0114849j
+  0.22811966+0.0210917j   0.54059018+0.02010597j]
+  SciPy Sol   u(T)= [0.22694935-0.00623256j 0.26034915+0.01622627j 0.22272406+0.02464742j
+ 0.00328346-0.00489624j 0.03496533-0.00371954j 0.51085415-0.01533915j
+ 0.21060556+0.01826594j 0.51087555+0.02522659j]   Norm= 0.8594185764439081
+  Homogeneous solution error u(T)         : 0.047580000948873886    Relative error: 0.055363011986254526
+
+
+Tests with Quantum Trottered Subroutine (My Implementation)
+  Preset parameters T =  1 beta =  0.9 epsilon =  0.1
+  Truncation range [-K,K] K = 7.2096759475281935
+  Step size h1 = 1.2016126579213655
+  Number of nodes in [mh_1, (m+1)h_1] Q = 4
+  Total number of nodes M = 48
+  ||c||_1 = 1.7292513427091303
+  Number of Qubits: 9
+  
+Transpiled LCU Circ Stats
+  OrderedDict({'rz': 549913, 'cx': 532277, 'ry': 54372, 'rx': 20741})
+  Circuit Depth: 777996
+  Homogeneous u(T)= [0.23450369-0.00195858j 0.24896194+0.0046924j  0.25264325+0.02416838j
+ 0.01154732+0.00264656j 0.06423038+0.00184652j 0.52660435+0.00022412j
+ 0.21531046+0.00165441j 0.55184338+0.00550977j]
+  SciPy Sol   u(T)= [0.22694935-0.00623256j 0.26034915+0.01622627j 0.22272406+0.02464742j
+ 0.00328346-0.00489624j 0.03496533-0.00371954j 0.51085415-0.01533915j
+ 0.21060556+0.01826594j 0.51087555+0.02522659j]   Norm= 0.8594185764439081
+  Homogeneous solution error u(T)         : 0.07142485821940732    Relative error: 0.08310834810546945
+
+
+Tests with Quantum Subroutine (Qiskit API)
+  Preset parameters T =  1 beta =  0.9 epsilon =  0.1
+  Truncation range [-K,K] K = 7.2096759475281935
+  Step size h1 = 1.2016126579213655
+  Number of nodes in [mh_1, (m+1)h_1] Q = 4
+  Total number of nodes M = 48
+  ||c||_1 = 1.7292513427091303
+  Number of Qubits: 9

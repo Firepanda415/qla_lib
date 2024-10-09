@@ -2,16 +2,16 @@
 ## Author: Muqing Zheng
 
 import numpy
-import qiskit.quantum_info
 import scipy 
 import qiskit
 from utils_synth import *
 
-## TODO: Track golbal phase at the last step when you add control
-## TODO: multiple control on custom oracle
+## TODO: Improve state preparation, see improved implementation in comments in stateprep_ucry.py
+## TODO: Implement Appendix A2 optimization, see comments in synthu_qsd
+## TODO: Impement Hamiltonian simualtion oracle in https://arxiv.org/pdf/2402.18398v1
 
 _ATOL = 1e-12
-_ROUND = 12
+_ROUND = 12 ## round precision
 
 ####----------------------------------------- 1-qubit Unitary matrix Synthesis -----------------------------------------####
 
@@ -363,7 +363,7 @@ def muxry_cz(circuit:qiskit.QuantumCircuit,
 
 
 
-def synthu_qsd(unitary:numpy.ndarray, circuit:qiskit.QuantumCircuit, bottom_control:list[int], top_target:int, cz_opt:bool=True, debug:bool=False):
+def synthu_qsdcircuit(unitary:numpy.ndarray, circuit:qiskit.QuantumCircuit, bottom_control:list[int], top_target:int, cz_opt:bool=True, debug:bool=False):
     """
     Use uniformly controlled rotations to synthesize a unitary matrix
     Based on Quantum Shannon Decomposition (QSD) in [1]
@@ -401,6 +401,7 @@ def synthu_qsd(unitary:numpy.ndarray, circuit:qiskit.QuantumCircuit, bottom_cont
                        n-1 -/---ctrl-
     bottom_control is [1,2,3,...,n-1], top_target is 0
     NOTE: I don't follow the qiskit convention for the endianess
+    TODO: Apply the CNOT gate optimization in Appendix A2 in [1]
     """
 
     (u1,u2), thetas_cs, (v1h, v2h) = scipy.linalg.cossin(unitary, p=unitary.shape[0]//2, q=unitary.shape[1]//2, separate=True)
@@ -431,9 +432,9 @@ def synthu_qsd(unitary:numpy.ndarray, circuit:qiskit.QuantumCircuit, bottom_cont
     ## v
     v_v, v_dd, v_w = second_decomp(v1h, v2h, enable_debug=debug)
     v_zangle = list(numpy.angle(v_dd)* (-2)) ## R_z(lambda) = exp(-i lambda Z/2)
-    synthu_qsd(v_w, circuit, bottom_control[1:], bottom_control[0], cz_opt=cz_opt, debug=debug)
+    synthu_qsdcircuit(v_w, circuit, bottom_control[1:], bottom_control[0], cz_opt=cz_opt, debug=debug)
     multiplexer_pauli(circuit, v_zangle, bottom_control, top_target, axis='Z') ## V_D
-    synthu_qsd(v_v, circuit, bottom_control[1:], bottom_control[0], cz_opt=cz_opt, debug=debug)
+    synthu_qsdcircuit(v_v, circuit, bottom_control[1:], bottom_control[0], cz_opt=cz_opt, debug=debug)
 
     # CS
     if debug:
@@ -454,12 +455,17 @@ def synthu_qsd(unitary:numpy.ndarray, circuit:qiskit.QuantumCircuit, bottom_cont
     ## u
     u_v, u_dd, u_w = second_decomp(u1, u2, enable_debug=debug)
     u_zangle = list(numpy.angle(u_dd)* (-2)) ## R_z(lambda) = exp(-i lambda Z/2)
-    synthu_qsd(u_w, circuit, bottom_control[1:], bottom_control[0], cz_opt=cz_opt, debug=debug)
+    synthu_qsdcircuit(u_w, circuit, bottom_control[1:], bottom_control[0], cz_opt=cz_opt, debug=debug)
     multiplexer_pauli(circuit, u_zangle, bottom_control, top_target, axis='Z') ## U_D
-    synthu_qsd(u_v, circuit, bottom_control[1:], bottom_control[0], cz_opt=cz_opt, debug=debug)
+    synthu_qsdcircuit(u_v, circuit, bottom_control[1:], bottom_control[0], cz_opt=cz_opt, debug=debug)
 
 
-
+def synthu_qsd(unitary:numpy.ndarray, cz_opt:bool=True, debug:bool=False):
+    ## Wrapper for synthu_qsdcircuit
+    num_qubits = int(numpy.log2(unitary.shape[0]))
+    circuit = qiskit.QuantumCircuit(num_qubits)
+    synthu_qsdcircuit(unitary, circuit, list(range(num_qubits))[1:], 0, cz_opt=cz_opt, debug=debug)
+    return circuit
 
 
 
@@ -537,8 +543,10 @@ def stateprep_ucr(init_state:numpy.ndarray, circuit:qiskit.QuantumCircuit, debug
     Then the state preparation circuit is just applying all operators in the inverse order
     NOTE: as shown in Eq. (7), there is a global phase remains, so we need to adjust the global phase at the beginning
     NOTE: I don't follow the qiskit convention for the endianess
+    TODO: Implement the optimized method in [2]
 
     [1] Transformation of quantum states using uniformly controlled rotations http://arxiv.org/abs/quant-ph/0407010
+    [2] Quantum circuits with uniformly controlled one-qubit gates http://arxiv.org/abs/quant-ph/0410066
     '''
 
     num_qubits = int(numpy.log2(len(init_state)))
@@ -581,6 +589,12 @@ def stateprep_ucr(init_state:numpy.ndarray, circuit:qiskit.QuantumCircuit, debug
 
 
 
+
+
+
+
+
+
 ####----------------------------------------- Tests -----------------------------------------####
 
 if __name__ == "__main__":
@@ -591,11 +605,13 @@ if __name__ == "__main__":
 
     rng = numpy.random.default_rng(429096209556973234794512152190348779897183667923694427)
 
-    test_1q = True
-    test_kak = True
+    test_1q = False
+    test_kak = False
 
     test_state_prep = False #False 
     test_unitary_synth = True
+
+    test_pdeham = False
 
     ########################################## 1Q ################################################################
     print("\n\n\n\n\n")
@@ -736,8 +752,9 @@ if __name__ == "__main__":
 
                 ## My QSD implementation
                 print("  \nQSD Unitary Synthesis")
-                my_circuit = QuantumCircuit(n)
-                synthu_qsd(U, my_circuit, list(range(n))[1:], 0, cz_opt=True)
+                # my_circuit = QuantumCircuit(n)
+                # synthu_qsd(U, my_circuit, list(range(n))[1:], 0, cz_opt=True)
+                my_circuit = synthu_qsd(U, cz_opt=True)
                 my_circuit = my_circuit.reverse_bits() ## Hi, not gonna follow qiskit rule in my implementation
 
                 my_circ_mat = Operator(my_circuit).data
@@ -767,3 +784,51 @@ if __name__ == "__main__":
 
 
 
+
+    ##########################################################################################################
+    if test_pdeham:
+
+        ## for Hamilon construction
+
+        def tensor_power(mat:numpy.ndarray, power:int):
+            if power == 0:
+                return 1
+            if power == 1:
+                return mat
+            return numpy.kron(mat, tensor_power(mat, power-1))
+
+        def hams_sju(sign:str, j:int, n:int): ## little endian
+            KET0 = numpy.array([[1], [0]])
+            KET1 = numpy.array([[0], [1]])
+            K10B = KET1 @ KET0.T
+            K01B = KET0 @ KET1.T
+            I = numpy.eye(2)
+            Inj = tensor_power(I, n-j-1)
+            if sign == '+':
+                tmp1 = tensor_power(K01B, j)
+                tmp = numpy.kron(K10B, tmp1)
+            elif sign == '-':
+                tmp1 = tensor_power(K10B, j)
+                tmp = numpy.kron(K01B, tmp1)
+
+            return numpy.kron(Inj, tmp)
+
+        def hams_fullmat(gamma:float, lam:float, n:int):
+            ham_mat = numpy.zeros((2**n,2**n), dtype=complex)
+            for j in range(n):
+                ham_mat += numpy.exp(1j*lam)*hams_sju('-', j, n) + numpy.exp(-1j*lam)*hams_sju('+', j, n)
+            ham_mat *= gamma
+            return ham_mat
+        
+        lam = 0.5
+        gamma = 0.1
+        n = 2 ## 2^n is number of spatial discretization points
+        time_tau = 1
+        ham = hams_fullmat(gamma, lam, n)
+
+        scipy_sol = scipy.linalg.expm(-1j * time_tau * ham)
+        my_sol_circ = expmiht_approx(n, time_tau, gamma, lam, order=2, verbose=1)
+        my_sol = Operator(my_sol_circ).data
+
+        error = numpy.linalg.norm( scipy_sol - Operator(my_sol).data )
+        print("  >>Hamiltonian Evolution Error", error)

@@ -3,6 +3,8 @@ import scipy
 
 KET0 = np.array([[1], [0]])
 KET1 = np.array([[0], [1]])
+K10B = KET1 @ KET0.T
+K01B = KET0 @ KET1.T
 K00B = KET0 @ KET0.T
 K11B = KET1 @ KET1.T
 
@@ -37,6 +39,10 @@ def Z():
 def H():
     return np.array([[1, 1],
                      [1, -1]]) / np.sqrt(2)
+
+def P(lam):
+    return np.array([[1, 0],
+                     [0, np.exp(1j*lam)]])
 
 # def CNOT():
 #     return np.array([[1, 0, 0, 0],
