@@ -22,7 +22,7 @@ def state_prep_qr(coeff_array: list) -> numpy.array:
     V|0000...0> = 1/sqrt(||a||_1) sum_i=0^{K-1} sqrt(|a_i|)|i>
     where ||a||_1 = sum_i |a_i|, a_i>0 (WLOG by absorbing the phase into U_i)
                            sqrt(a_0)    *   *  ...  *
-    V = 1/sqrt(||a||_1)   sqrt(a_1)    *   *  ...  *
+    V = 1/sqrt(||a||_1)    sqrt(a_1)    *   *  ...  *
                              ....        *   *  ...  *
                            sqrt(a_{K-1} *   *  ...  *
     Return
@@ -74,6 +74,7 @@ def prep_oracle(coeff_array: list, qiskit_api:bool=False) -> numpy.array:
         ucr_circuit = ucr_circuit.reverse_bits() ## stateprep_ucr not follow qiskit rule in my implementation
         ucr_circuit.name = "PREP"
         return ucr_circuit.to_gate()
+    
 
 
 def select_oracle(unitary_array: list[numpy.ndarray], qiskit_api:bool=False) -> qiskit.QuantumCircuit:
@@ -89,10 +90,11 @@ def select_oracle(unitary_array: list[numpy.ndarray], qiskit_api:bool=False) -> 
         if qiskit_api:
             control_u = qiskit.circuit.library.UnitaryGate(unitary_array[i]).control(num_qubits_control)
         else:
+            # qsd_circuit = qiskit.QuantumCircuit(num_qubits_op)
+            # qsd_circuit.append(qiskit.circuit.library.UnitaryGate(unitary_array[i]), range(num_qubits_op))
             qsd_circuit = synthu_qsd(unitary_array[i])
-            qsd_circuit = qiskit.transpile(qsd_circuit, basis_gates=['cx','ry','rz','rx','x','p'], optimization_level=1)
+            qsd_circuit = qiskit.transpile(qsd_circuit, basis_gates=['rz', 'ry', 'rx','x', 'z','p','cx','cz'], optimization_level=1)
             qsd_circuit.name = "U"+str(i)
-            # control_u = qsd_circuit.reverse_bits().control(num_qubits_control)
             control_u = selected_controlled_circuit(qsd_circuit, num_qubits_control, 
                            to_known_basis=False, reverse_bits=True)   ## NOTE:synthu_qsd not follow qiskit rule in my implementation
         ## For 0-control
@@ -180,11 +182,12 @@ if __name__ == "__main__":
 
     print("="*50)
 
-    fixed_nterms = 5
-    for n in range(3,5):
+    fixed_nterms = 17
+    optimization_level = 2
+    for n in range(2,4):
         print("\n\n\n")
         print("-"*50)
-        print(f"LCU {fixed_nterms} terms Test case: Random {n}-qubit")
+        print(f"LCU {fixed_nterms} terms Test case: Random {n}-qubit unitaries")
         for _ in range(3):
             print("-"*10)
             test_coefs =  (rng.random( fixed_nterms ) - 0.5) + 1j*(rng.random( fixed_nterms ) - 0.5) ## test case for less than 2^n coefficients
@@ -204,26 +207,26 @@ if __name__ == "__main__":
             circ_mat = qiskit.quantum_info.Operator(LCU).data
             lcu_sol = qiskit_normal_order_switch(circ_mat[:test_unitaries[0].shape[0],:test_unitaries[0].shape[1]]) ## need the endianness switch for each coordinates on submatrix
             
-            LCU_trans = qiskit.transpile(LCU, basis_gates=['cx', 'rz', 'ry', 'rx'], optimization_level=2)
-            LCU_qis_trans = qiskit.transpile(LCU_qis, basis_gates=['cx', 'rz', 'ry', 'rx'], optimization_level=2)
+            LCU_trans = qiskit.transpile(LCU, basis_gates=['cx', 'u'], optimization_level=optimization_level)
+            LCU_qis_trans = qiskit.transpile(LCU_qis, basis_gates=['cx', 'u'], optimization_level=optimization_level)
             LCU_trans_gates = dict(LCU_trans.count_ops())
             LCU_qis_trans_gates = dict(LCU_qis_trans.count_ops())
             ##
             
             # print("  Correct answer:\n", correct_answer)
             # print("\n  LCU Implementation:\n", lcu_sol)
-            print("\n  Gates (Qis vs. Mine)", LCU_qis_trans_gates, LCU_trans_gates)
-            print(f"\n  CX Gates (Qis vs. Mine) {LCU_qis_trans_gates['cx']} vs. {LCU_trans_gates['cx']}")
+            print(f"\n  U Gates (Qis vs. Mine) {LCU_qis_trans_gates['u']} vs. {LCU_trans_gates['u']}")
+            print(f"  CX Gates (Qis vs. Mine) {LCU_qis_trans_gates['cx']} vs. {LCU_trans_gates['cx']}")
             print(f"  Depth (Qis vs. Mine) {LCU_qis_trans.depth()} vs. {LCU_trans.depth()}")
             print(f"\n  >>>>>>Error: {numpy.linalg.norm(correct_answer - lcu_sol, ord=2)}<<<<<<\n")
             assert(numpy.linalg.norm(correct_answer - lcu_sol, ord=2) < 1e-8)
 
 
 
-    for n in range(1,4):
+    for n in range(2,5):
         print("\n\n\n")
         print("-"*50)
-        print(f"LCU 2^n terms Test case: Random {n}-qubit")
+        print(f"LCU 2^n terms Test case: Random {n}-qubit unitaries")
         for _ in range(3):
             print("-"*10)
             test_coefs =  (rng.random( (2**n) ) - 0.5) + 1j*(rng.random( (2**n) ) - 0.5)
@@ -243,16 +246,16 @@ if __name__ == "__main__":
             circ_mat = qiskit.quantum_info.Operator(LCU).data
             lcu_sol = qiskit_normal_order_switch(circ_mat[:test_unitaries[0].shape[0],:test_unitaries[0].shape[1]]) ## need the endianness switch for each coordinates on submatrix
             
-            LCU_trans = qiskit.transpile(LCU, basis_gates=['cx', 'rz', 'ry', 'rx'], optimization_level=2)
-            LCU_qis_trans = qiskit.transpile(LCU_qis, basis_gates=['cx', 'rz', 'ry', 'rx'], optimization_level=2)
+            LCU_trans = qiskit.transpile(LCU, basis_gates=['cx', 'u'], optimization_level=optimization_level)
+            LCU_qis_trans = qiskit.transpile(LCU_qis, basis_gates=['cx', 'u'], optimization_level=optimization_level)
             LCU_trans_gates = dict(LCU_trans.count_ops())
             LCU_qis_trans_gates = dict(LCU_qis_trans.count_ops())
             ##
             
             # print("  Correct answer:\n", correct_answer)
             # print("\n  LCU Implementation:\n", lcu_sol)
-            print("\n  Gates (Qis vs. Mine)", LCU_qis_trans_gates, LCU_trans_gates)
-            print(f"\n  CX Gates (Qis vs. Mine) {LCU_qis_trans_gates['cx']} vs. {LCU_trans_gates['cx']}")
+            print(f"\n  U Gates (Qis vs. Mine) {LCU_qis_trans_gates['u']} vs. {LCU_trans_gates['u']}")
+            print(f"  CX Gates (Qis vs. Mine) {LCU_qis_trans_gates['cx']} vs. {LCU_trans_gates['cx']}")
             print(f"  Depth (Qis vs. Mine) {LCU_qis_trans.depth()} vs. {LCU_trans.depth()}")
             print(f"\n  >>>>>>Error: {numpy.linalg.norm(correct_answer - lcu_sol, ord=2)}<<<<<<\n")
             assert(numpy.linalg.norm(correct_answer - lcu_sol, ord=2) < 1e-8)

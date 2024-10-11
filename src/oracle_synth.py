@@ -611,8 +611,6 @@ if __name__ == "__main__":
     test_state_prep = False #False 
     test_unitary_synth = True
 
-    test_pdeham = False
-
     ########################################## 1Q ################################################################
     print("\n\n\n\n\n")
     print("="*100)
@@ -684,8 +682,8 @@ if __name__ == "__main__":
                 qis_prep_isometry = qiskit.circuit.library.StatePreparation(psi)
                 qiscirc.append(qis_prep_isometry, list(range(n)))
 
-                qiscirc_trans = transpile(qiscirc, basis_gates=['rz','ry','rx', 'cx'], optimization_level=0)
-                qiscirc_trans_opt = transpile(qiscirc, basis_gates=['rz','ry','rx', 'cx'], optimization_level=2)
+                qiscirc_trans = transpile(qiscirc, basis_gates=['u', 'cx'], optimization_level=0)
+                qiscirc_trans_opt = transpile(qiscirc, basis_gates=['u', 'cx'], optimization_level=2)
                 qis_op_dict = dict(qiscirc_trans.count_ops())
                 qis_op_dict_opt = dict(qiscirc_trans_opt.count_ops()) 
                 print("    - Theoretical SP upper bound (Schmidt Decomposition): ", 23/24 * (2**n)) ## https://journals.aps.org/pra/pdf/10.1103/PhysRevA.93.032318
@@ -700,8 +698,8 @@ if __name__ == "__main__":
                 stateprep_ucr(psi, my_ucr_circuit)
                 my_ucr_circuit = my_ucr_circuit.reverse_bits() ## Hi, not gonna follow qiskit rule in my implementation
 
-                my_ucr_circuit_trans = transpile(my_ucr_circuit, basis_gates=['rz','ry','rx', 'cx'], optimization_level=0)
-                my_ucr_circuit_trans_opt = transpile(my_ucr_circuit, basis_gates=['rz','ry','rx', 'cx'], optimization_level=2)
+                my_ucr_circuit_trans = transpile(my_ucr_circuit, basis_gates=['u', 'cx'], optimization_level=0)
+                my_ucr_circuit_trans_opt = transpile(my_ucr_circuit, basis_gates=['u', 'cx'], optimization_level=2)
                 ucr_op_dict = dict(my_ucr_circuit_trans.count_ops())
                 ucr_op_dict_opt = dict(my_ucr_circuit_trans_opt.count_ops())
                 print("    - Theoretical UCR lower bound: ", 2*(2**n) - 2*n -2) ## See https://arxiv.org/pdf/quant-ph/0406176 from  https://github.com/Qiskit/qiskit-tutorials/blob/master/tutorials/circuits/3_summary_of_quantum_operations.ipynb
@@ -743,8 +741,8 @@ if __name__ == "__main__":
 
                 qiscirc_mat = Operator(qiscirc).data
 
-                qiscirc_trans = transpile(qiscirc, basis_gates=['rz','ry','rx', 'cx'], optimization_level=0)
-                qiscirc_trans_opt = transpile(qiscirc, basis_gates=['rz','ry','rx', 'cx'], optimization_level=2)
+                qiscirc_trans = transpile(qiscirc, basis_gates=['u', 'cx'], optimization_level=0)
+                qiscirc_trans_opt = transpile(qiscirc, basis_gates=['u', 'cx'], optimization_level=2)
                 print("    - Qiskit Unitary Circuit Op Count", dict(qiscirc_trans.count_ops()) )
                 print("    - Qiskit Unitary Optimized Circuit Op Count", dict(qiscirc_trans_opt.count_ops()) )
                 print("    - Qiskit Unitary error", numpy.linalg.norm(qiscirc_mat - U) )
@@ -759,8 +757,8 @@ if __name__ == "__main__":
 
                 my_circ_mat = Operator(my_circuit).data
 
-                my_circuit_trans = transpile(my_circuit, basis_gates=['rz','ry','rx', 'cx'], optimization_level=0)
-                my_circuit_trans_opt = transpile(my_circuit, basis_gates=['rz','ry','rx', 'cx'], optimization_level=2)
+                my_circuit_trans = transpile(my_circuit, basis_gates=['u', 'cx'], optimization_level=0)
+                my_circuit_trans_opt = transpile(my_circuit, basis_gates=['u', 'cx'], optimization_level=2)
 
                 print("    - Theoretical CX lower bound: ", 0.25*(4**n-3*n-1))
                 print("    - QSD l=1 lower bound", (3/4)*4**n - 1.5*(2**n))
@@ -781,54 +779,3 @@ if __name__ == "__main__":
                     print(f">>>>CX Summary: Qiskit={dict(qiscirc_trans.count_ops())['cx']}, QSD={dict(my_circuit_trans.count_ops())['cx']}, QSD_opt={dict(my_circuit_trans_opt.count_ops())['cx']}<<<<")
                     print(f">>>>Total Gates Summary: Qiskit={numpy.sum(list(dict(qiscirc_trans.count_ops()).values()))}, Qiskit_opt={numpy.sum(list(dict(qiscirc_trans_opt.count_ops()).values()))}, QSD={numpy.sum(list(dict(my_circuit_trans.count_ops()).values()))},QSD={numpy.sum(list(dict(my_circuit_trans_opt.count_ops()).values() ))}")
                 assert(numpy.linalg.norm(my_circ_mat - U) < 1e-8)
-
-
-
-
-    ##########################################################################################################
-    if test_pdeham:
-
-        ## for Hamilon construction
-
-        def tensor_power(mat:numpy.ndarray, power:int):
-            if power == 0:
-                return 1
-            if power == 1:
-                return mat
-            return numpy.kron(mat, tensor_power(mat, power-1))
-
-        def hams_sju(sign:str, j:int, n:int): ## little endian
-            KET0 = numpy.array([[1], [0]])
-            KET1 = numpy.array([[0], [1]])
-            K10B = KET1 @ KET0.T
-            K01B = KET0 @ KET1.T
-            I = numpy.eye(2)
-            Inj = tensor_power(I, n-j-1)
-            if sign == '+':
-                tmp1 = tensor_power(K01B, j)
-                tmp = numpy.kron(K10B, tmp1)
-            elif sign == '-':
-                tmp1 = tensor_power(K10B, j)
-                tmp = numpy.kron(K01B, tmp1)
-
-            return numpy.kron(Inj, tmp)
-
-        def hams_fullmat(gamma:float, lam:float, n:int):
-            ham_mat = numpy.zeros((2**n,2**n), dtype=complex)
-            for j in range(n):
-                ham_mat += numpy.exp(1j*lam)*hams_sju('-', j, n) + numpy.exp(-1j*lam)*hams_sju('+', j, n)
-            ham_mat *= gamma
-            return ham_mat
-        
-        lam = 0.5
-        gamma = 0.1
-        n = 2 ## 2^n is number of spatial discretization points
-        time_tau = 1
-        ham = hams_fullmat(gamma, lam, n)
-
-        scipy_sol = scipy.linalg.expm(-1j * time_tau * ham)
-        my_sol_circ = expmiht_approx(n, time_tau, gamma, lam, order=2, verbose=1)
-        my_sol = Operator(my_sol_circ).data
-
-        error = numpy.linalg.norm( scipy_sol - Operator(my_sol).data )
-        print("  >>Hamiltonian Evolution Error", error)
