@@ -7,11 +7,12 @@ import qiskit
 from utils_synth import *
 
 ## TODO: Improve state preparation, see improved implementation in comments in stateprep_ucry.py
-## TODO: Implement Appendix A2 optimization, see comments in synthu_qsd
-## TODO: Impement Hamiltonian simualtion oracle in https://arxiv.org/pdf/2402.18398v1
+## TODO: Implement Appendix A2 optimization, see comments in synthu_qsd ## This is More Important
+## TODO Weyl Chamber https://journals.aps.org/pra/pdf/10.1103/PhysRevA.63.062309
 
 _ATOL = 1e-12
 _ROUND = 12 ## round precision
+_ATOL_MAT = 1e-10
 
 ####----------------------------------------- 1-qubit Unitary matrix Synthesis -----------------------------------------####
 
@@ -180,7 +181,7 @@ def kak_decomp(matrix:numpy.ndarray, debug:bool=False):
     YY = numpy.kron(Y, Y)
     ZZ = numpy.kron(Z, Z)
     mat_recon = numpy.exp(1j*phase_angle) * (numpy.kron(K1l, K1r).dot( scipy.linalg.expm(1j*(c0*XX+c1*YY+c2*ZZ)) ).dot(numpy.kron(K2l,K2r)))
-    if not numpy.allclose(mat_recon, matrix):
+    if not numpy.linalg.norm(mat_recon - matrix) < _ATOL_MAT:
         raise ValueError("The decomposition is not correct for ", matrix)
     
     if debug:
@@ -264,8 +265,9 @@ def synthu_kak(circuit:qiskit.QuantumCircuit, matrix:numpy.ndarray, qubits:list[
     # kak_circ.unitary(K1r, 1)
     synthu_1q(kak_circ, K1r, 1)
     ## Verify the decomposition
-    if not numpy.allclose(qiskit.quantum_info.Operator(kak_circ.reverse_bits()).data, matrix):
-        raise ValueError("Error on KAK circuit:", numpy.linalg.norm( qiskit.quantum_info.Operator(kak_circ.reverse_bits()).data-matrix ))
+    synthesis_error = numpy.linalg.norm(qiskit.quantum_info.Operator(kak_circ.reverse_bits()).data - matrix)
+    if  synthesis_error > _ATOL_MAT:
+        raise ValueError("Error on KAK circuit:", synthesis_error)
     circuit.append(kak_circ.reverse_bits(), qubits) ## need to do reverse_bits() as Qiskit uses little-endian
 
 
@@ -277,7 +279,7 @@ def synthu_kak(circuit:qiskit.QuantumCircuit, matrix:numpy.ndarray, qubits:list[
 
 
 
-def second_decomp(block_u1:numpy.ndarray, block_u2:numpy.ndarray, enable_debug:bool=True) -> (numpy.ndarray, numpy.ndarray, numpy.ndarray):
+def second_decomp(block_u1:numpy.ndarray, block_u2:numpy.ndarray, debug:bool=True):
     """
     Accoding to Eq. (16) in [1]
     Cosine-Sine decompsotion gives 
@@ -310,7 +312,7 @@ def second_decomp(block_u1:numpy.ndarray, block_u2:numpy.ndarray, enable_debug:b
     bu_d_inv = numpy.diag( 1/numpy.sqrt(bu_evals) )
     bu_w = bu_d_inv @ bu_v.T.conj() @ block_u1
 
-    if enable_debug:
+    if debug:
         bu_d = numpy.diag( numpy.sqrt(bu_evals) )
         zeroes = numpy.zeros_like(block_u1)
         prod_mat = numpy.array([[bu_v, zeroes], [zeroes, bu_v]]) @ numpy.array([[bu_d, zeroes], [zeroes, bu_d.conj().T]]) @ numpy.array([[bu_w, zeroes],[zeroes, bu_w]])
@@ -430,7 +432,7 @@ def synthu_qsdcircuit(unitary:numpy.ndarray, circuit:qiskit.QuantumCircuit, bott
         return
     
     ## v
-    v_v, v_dd, v_w = second_decomp(v1h, v2h, enable_debug=debug)
+    v_v, v_dd, v_w = second_decomp(v1h, v2h, debug=debug)
     v_zangle = list(numpy.angle(v_dd)* (-2)) ## R_z(lambda) = exp(-i lambda Z/2)
     synthu_qsdcircuit(v_w, circuit, bottom_control[1:], bottom_control[0], cz_opt=cz_opt, debug=debug)
     multiplexer_pauli(circuit, v_zangle, bottom_control, top_target, axis='Z') ## V_D
@@ -453,7 +455,7 @@ def synthu_qsdcircuit(unitary:numpy.ndarray, circuit:qiskit.QuantumCircuit, bott
         circuit.barrier()
 
     ## u
-    u_v, u_dd, u_w = second_decomp(u1, u2, enable_debug=debug)
+    u_v, u_dd, u_w = second_decomp(u1, u2, debug=debug)
     u_zangle = list(numpy.angle(u_dd)* (-2)) ## R_z(lambda) = exp(-i lambda Z/2)
     synthu_qsdcircuit(u_w, circuit, bottom_control[1:], bottom_control[0], cz_opt=cz_opt, debug=debug)
     multiplexer_pauli(circuit, u_zangle, bottom_control, top_target, axis='Z') ## U_D

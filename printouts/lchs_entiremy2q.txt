@@ -13,7 +13,7 @@ Tests with Classical Subroutine (Homogeneous, no trotter)
   Total number of nodes M = 60
   ||c||_1 = 1.7283547979939213
   Homogeneous u(T)= [0.50229541+0.01798993j 0.11335384-0.0075547j  0.42127745+0.01030466j
- 0.35561175-0.01215194j]
+ 0.35561175-0.01215194j]   Norm= 0.7547971569088853
   SciPy Sol   u(T)= [0.51733798+0.01563855j 0.12604876-0.01308981j 0.42970522+0.01149142j
  0.36258908-0.00795471j]   Norm= 0.7747615932962055
   Homogeneous solution error u(T)         : 0.023713745734043095    Relative error: 0.03060779721043412
@@ -31,6 +31,7 @@ Tests with Quantum Subroutine (My Implementation)
   Number of nodes in [mh_1, (m+1)h_1] Q = 5
   Total number of nodes M = 60
   ||c||_1 = 1.7283547979939213
+  LCU-Oracle: num_qubits_control= 6 num_qubits_op= 2
 /Users/zhen002/miniconda3/envs/qnew/lib/python3.12/site-packages/numpy/linalg/linalg.py:2180: RuntimeWarning: divide by zero encountered in det
   r = _umath_linalg.det(a, signature=signature)
 /Users/zhen002/miniconda3/envs/qnew/lib/python3.12/site-packages/numpy/linalg/linalg.py:2180: RuntimeWarning: invalid value encountered in det
@@ -41,14 +42,17 @@ Tests with Quantum Subroutine (My Implementation)
   r = _umath_linalg.det(a, signature=signature)
   Number of Qubits: 8
 
-  Transpiled LCU Circ Stats
-  OrderedDict({'u': 96552, 'cx': 94686})
-  Circuit Depth: 124504
+  Transpiled LCU Circ Stats (Opt 0): OrderedDict({'u': 129142, 'cx': 95884})
+    Circuit Depth (Opt 0): 142440
+
+  Transpiled LCU Circ Stats (Opt 2): OrderedDict({'u': 96552, 'cx': 94686})
+    Circuit Depth (Opt 2): 124504
+
   Homogeneous u(T)= [0.52921452+0.01096712j 0.14463592-0.02151716j 0.43394892+0.01250442j
- 0.36607606+0.000463j  ]
+ 0.36607606+0.000463j  ]   Norm= 0.7899688257404728
   SciPy Sol   u(T)= [0.51733798+0.01563855j 0.12604876-0.01308981j 0.42970522+0.01149142j
  0.36258908-0.00795471j]   Norm= 0.7747615932962055
-  Homogeneous solution error u(T)         : 0.026104206455196777    Relative error: 0.03369321179711171
+  Homogeneous solution error u(T)         : 0.02610420645519832    Relative error: 0.0336932117971137
 
 
 Tests with Quantum Subroutine (Qiskit API)
@@ -58,13 +62,17 @@ Tests with Quantum Subroutine (Qiskit API)
   Number of nodes in [mh_1, (m+1)h_1] Q = 5
   Total number of nodes M = 60
   ||c||_1 = 1.7283547979939213
+  LCU-Oracle: num_qubits_control= 6 num_qubits_op= 2
   Number of Qubits: 8
-  
-Transpiled LCU Circ Stats
-  OrderedDict({'u': 1055506, 'cx': 1042734})
-  Circuit Depth: 2073530
+
+  Transpiled LCU Circ Stats (Opt 0): OrderedDict({'u': 1067362, 'cx': 1054074})
+    Circuit Depth (Opt 0): 2099214
+
+  Transpiled LCU Circ Stats (Opt 2): OrderedDict({'u': 1055506, 'cx': 1042734})
+    Circuit Depth (Opt 2): 2073530
+
   Homogeneous u(T)= [0.52921452+0.01096712j 0.14463592-0.02151716j 0.43394892+0.01250442j
- 0.36607606+0.000463j  ]
+ 0.36607606+0.000463j  ]   Norm= 0.7899688256448759
   SciPy Sol   u(T)= [0.51733798+0.01563855j 0.12604876-0.01308981j 0.42970522+0.01149142j
  0.36258908-0.00795471j]   Norm= 0.7747615932962055
   Homogeneous solution error u(T)         : 0.02610420639803138    Relative error: 0.03369321172332721

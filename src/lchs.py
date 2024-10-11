@@ -368,7 +368,7 @@ def class_lchs_tips(A:numpy.matrix, u0:numpy.matrix, func_bt:Callable[[complex],
 ## Homogenous Part of the Solution
 def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsilon:float, 
                     trunc_multiplier=2, trotterLH:bool=False,
-                    qiskit_api:bool=False, verbose:int=0) -> tuple[numpy.matrix,numpy.matrix]: 
+                    qiskit_api:bool=False, verbose:int=0, debug:bool=False) -> tuple[numpy.matrix,numpy.matrix]: 
     '''
     Solve Homogeneous IVP du/dt = -Au(t) with u(0) = u0
     Input:
@@ -437,7 +437,7 @@ def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
         
     ## Obtain the linear combination by LCU
     # lcu_circ = lcu_generator(coeffs, unitaries, initial_state_circ=state_prep_circ, qiskit_api=qiskit_api) ## NOTE: the return circuit is in qiskit order
-    lcu_circ = lcu_generator(coeffs, unitaries, initial_state_circ=None, qiskit_api=qiskit_api) ## NOTE: the return circuit is in qiskit order
+    lcu_circ = lcu_generator(coeffs, unitaries, initial_state_circ=None, verbose=verbose, qiskit_api=qiskit_api, debug=debug) ## NOTE: the return circuit is in qiskit order
     if trotterLH:
         exph_circ = qiskit.QuantumCircuit(int(numpy.log2(H.shape[0])))
         synthu_qsd(utk_H(tT, 0.5*H), exph_circ) ## exp(i(A+B)) approx exp(iA/2) exp(iB) exp(iA/2), (4.104) in Nielsen and Chuang (10th anniversary edition)
@@ -447,17 +447,21 @@ def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
     if verbose > 0:
         print("  Number of Qubits:", lcu_circ.num_qubits)
 
-    trans_lcu = qiskit.transpile(lcu_circ, basis_gates=['cx', 'u'], optimization_level=2)
     if verbose > 0:
-        print("  \nTranspiled LCU Circ Stats\n ", trans_lcu.count_ops())
-        print("  Circuit Depth:", trans_lcu.depth())
+        trans_lcu_opt0 = qiskit.transpile(lcu_circ, basis_gates=['cx', 'u'], optimization_level=0)
+        trans_lcu_opt2 = qiskit.transpile(lcu_circ, basis_gates=['cx', 'u'], optimization_level=2)
+        print("\n  Transpiled LCU Circ Stats (Opt 0):", trans_lcu_opt0.count_ops())
+        print("    Circuit Depth (Opt 0):", trans_lcu_opt0.depth())
+        print("\n  Transpiled LCU Circ Stats (Opt 2):", trans_lcu_opt2.count_ops())
+        print("    Circuit Depth (Opt 2):", trans_lcu_opt2.depth())
+        print()
 
+    # print(Warning("Simulation is DISABLED for a quick test"))
     circ_op = qiskit.quantum_info.Operator( lcu_circ ).data ## LCU has reversed qubits
     sum_op = qiskit_normal_order_switch( circ_op[:H.shape[0],:H.shape[1]] ) ## See lcu_generator use case example
     ## Compute u0
     u0_norm = u0/numpy.linalg.norm(u0,ord=2)
     uT = sum_op.dot(u0_norm)
-    # return sum_op, uT, lcu_circ
 
     # uT = qiskit.quantum_info.Statevector(lcu_circ).data[:H.shape[0]]
     ##
@@ -480,7 +484,7 @@ def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
 if __name__ == "__main__":
     ###----------------------------------------------------------------------------------------------------------------
     ## Problem Dimension
-    nq = 2
+    nq = 2 #2
     ## Define random A and u0
     dim = 2**nq
     rng = numpy.random.Generator(numpy.random.PCG64(178984893489))
@@ -502,7 +506,7 @@ if __name__ == "__main__":
     ## Define the time interval [0,T], beta and epsilon for LCHS parameters, epislon is the error tolerance
     T = 1
     beta = 0.9 # 0< beta < 1
-    epsilon = 0.05
+    epsilon = 0.05 #0.05
     tests_class_ho = True
     tests_quant_qis = True
     tests_quant_my = True
@@ -511,6 +515,8 @@ if __name__ == "__main__":
     tests_class_inho = False
 
     tests_bulk_hoinho= False
+
+    debug=False
 
 
     ### Quick check for eigenvalues
@@ -541,7 +547,7 @@ if __name__ == "__main__":
         if numpy.linalg.norm(uT.imag,ord=2) < 1e-12:
             uT = uT.real
         uT_err = numpy.linalg.norm(uT - spi_uT_ho,ord=2)
-        print("  Homogeneous u(T)=", uT)
+        print("  Homogeneous u(T)=", uT, "  Norm=", numpy.linalg.norm(uT,ord=2))
         print("  SciPy Sol   u(T)=", spi_uT_ho, "  Norm=", numpy.linalg.norm(spi_uT_ho,ord=2))
         print("  Homogeneous solution error u(T)         :", uT_err, "   Relative error:", uT_err/numpy.linalg.norm(spi_uT_ho,ord=2))
 
@@ -558,7 +564,7 @@ if __name__ == "__main__":
     print("="*60)
     if tests_quant_my:
         print("\n\nTests with Quantum Subroutine (My Implementation)")
-        quant_uT, lchs_circ_ho = quant_lchs_tihs(A, u0, T, beta, epsilon, trunc_multiplier=2, qiskit_api=False, verbose=1)
+        quant_uT, lchs_circ_ho = quant_lchs_tihs(A, u0, T, beta, epsilon, trunc_multiplier=2, qiskit_api=False, verbose=1, debug=debug)
         # qiskit.qasm2.dump(lchs_circ_ho, f"./lchs_ho_Asize{A.shape[0]}.qasm")
 
         quant_uT = numpy.array(quant_uT).reshape(-1)
@@ -566,34 +572,34 @@ if __name__ == "__main__":
             quant_uT = quant_uT.real
 
         quant_uT_err = numpy.linalg.norm(quant_uT - spi_uT_ho,ord=2)
-        print("  Homogeneous u(T)=", quant_uT)
+        print("  Homogeneous u(T)=", quant_uT, "  Norm=", numpy.linalg.norm(quant_uT,ord=2))
         print("  SciPy Sol   u(T)=", spi_uT_ho, "  Norm=", numpy.linalg.norm(spi_uT_ho,ord=2))
         print("  Homogeneous solution error u(T)         :", quant_uT_err, "   Relative error:", quant_uT_err/numpy.linalg.norm(spi_uT_ho,ord=2))
 
     if tests_quant_mytrotter:
         print("\n\nTests with Quantum Trottered Subroutine (My Implementation)")
-        quant_uT, lchs_circ_ho = quant_lchs_tihs(A, u0, T, beta, epsilon, trunc_multiplier=2, trotterLH=True,qiskit_api=False, verbose=1)
-        # qiskit.qasm2.dump(lchs_circ_ho, f"./lchs_ho_Asize{A.shape[0]}.qasm")
+        quant_uT, lchs_circ_ho = quant_lchs_tihs(A, u0, T, beta, epsilon, trunc_multiplier=2, trotterLH=True,qiskit_api=False, verbose=1, debug=debug)
+
 
         quant_uT = numpy.array(quant_uT).reshape(-1)
         if numpy.linalg.norm(quant_uT.imag,ord=2) < 1e-12:
             quant_uT = quant_uT.real
 
         quant_uT_err = numpy.linalg.norm(quant_uT - spi_uT_ho,ord=2)
-        print("  Homogeneous u(T)=", quant_uT)
+        print("  Homogeneous u(T)=", quant_uT, "  Norm=", numpy.linalg.norm(quant_uT,ord=2))
         print("  SciPy Sol   u(T)=", spi_uT_ho, "  Norm=", numpy.linalg.norm(spi_uT_ho,ord=2))
         print("  Homogeneous solution error u(T)         :", quant_uT_err, "   Relative error:", quant_uT_err/numpy.linalg.norm(spi_uT_ho,ord=2))
 
 
     if tests_quant_qis:
         print("\n\nTests with Quantum Subroutine (Qiskit API)")
-        quant_uT, lchs_circ_ho = quant_lchs_tihs(A, u0, T, beta, epsilon, trunc_multiplier=2, qiskit_api=True, verbose=1)
-        # qiskit.qasm2.dump(lchs_circ_ho, f"./lchs_ho_Asize{A.shape[0]}.qasm")
+        quant_uT, lchs_circ_ho = quant_lchs_tihs(A, u0, T, beta, epsilon, trunc_multiplier=2, qiskit_api=True, verbose=1, debug=debug)
+
         quant_uT = numpy.array(quant_uT).reshape(-1)
         if numpy.linalg.norm(quant_uT.imag,ord=2) < 1e-12:
             quant_uT = quant_uT.real
         quant_uT_err = numpy.linalg.norm(quant_uT - spi_uT_ho,ord=2)
-        print("  Homogeneous u(T)=", quant_uT)
+        print("  Homogeneous u(T)=", quant_uT, "  Norm=", numpy.linalg.norm(quant_uT,ord=2))
         print("  SciPy Sol   u(T)=", spi_uT_ho, "  Norm=", numpy.linalg.norm(spi_uT_ho,ord=2))
         print("  Homogeneous solution error u(T)         :", quant_uT_err, "   Relative error:", quant_uT_err/numpy.linalg.norm(spi_uT_ho,ord=2))
 
@@ -689,7 +695,7 @@ if __name__ == "__main__":
                     if numpy.linalg.norm(uT.imag,ord=2) < 1e-12:
                         uT = uT.real
                     uT_err = numpy.linalg.norm(uT - spi_uT_ho,ord=2)
-                    print("  Homogeneous u(T)=", uT)
+                    print("  Homogeneous u(T)=", uT, "  Norm=", numpy.linalg.norm(uT,ord=2))
                     print("  SciPy Sol   u(T)=", spi_uT_ho, "  Norm=", numpy.linalg.norm(spi_uT_ho,ord=2))
                     print("  Homogeneous solution error u(T)         :", uT_err, "   Relative error:", uT_err/numpy.linalg.norm(spi_uT_ho,ord=2))
             

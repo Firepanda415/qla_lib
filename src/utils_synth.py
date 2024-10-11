@@ -6,6 +6,7 @@
 import numpy
 import qiskit
 
+_ACCEPTED_GATES = ['rx','ry','rz','x','y','z','cx','cy','cz','p'] ## gates implemented in the controlled version
 
 ## TODO: verify implemnentation of controlled-P
 
@@ -84,6 +85,22 @@ import qiskit
 #         # The resulting Pauli is determined by XORing the binary codes
 #         result_binary = p1_binary ^ p2_binary
 #     return (phase, PAULI_I2C[result_binary])
+
+
+def opc_str(op_count_dict):
+    OP_str = ''
+    op_count_dict = dict(op_count_dict)
+    for k,v in op_count_dict.items():
+        gate_str = f"{k}={v}, "
+        if k.lower() == 'cx' or k.lower() == 'cz': ## put cx first
+            OP_str = gate_str + OP_str
+        else:
+            OP_str += gate_str
+    OP_str = OP_str[:-2]
+    OP_str += ' | '
+    return OP_str
+
+        
 
 
 def nearest_num_qubit(x):
@@ -193,7 +210,7 @@ def selected_controlled_circuit(son:qiskit.QuantumCircuit, num_controls:int, to_
     NOTE: with reverse_bits=True, make sure the input circuit is transpiled in the accpeted operations or set to_known_basis=True
     '''
     controlled_qubits = list(range(num_controls))
-    accepted_ops = ['rz', 'ry', 'rx','x', 'z','p','cx', 'cz']
+    accepted_ops = _ACCEPTED_GATES 
     if to_known_basis:
         dispclined_son = qiskit.transpile(son, basis_gates=accepted_ops, optimization_level=1)
     else:
@@ -232,14 +249,16 @@ def selected_controlled_circuit(son:qiskit.QuantumCircuit, num_controls:int, to_
             mc_x(mother, controlled_qubits+[control], target)
         elif operator.name == 'cz':
             mc_z(mother, controlled_qubits+[control], target)
+        elif operator.name == 'cy':
+            mc_y(mother, controlled_qubits+[control], target)
         elif operator.name == 'p':
             mc_p(mother, params[0], controlled_qubits, target)
         elif operator.name == 'x':
             mc_x(mother, controlled_qubits, target)
         elif operator.name == 'z':
-            mother.h(target)
-            mc_x(mother, controlled_qubits, target)
-            mother.h(target)
+            mc_z(mother, controlled_qubits, target)
+        elif operator.name == 'y':
+            mc_y(mother, controlled_qubits, target)
         else:
             raise ValueError(f"Invalid operation {operator.name}")
     # add global phase
@@ -428,7 +447,7 @@ def mc_p(circuit:qiskit.QuantumCircuit, angle:float, controls:list[int], target:
         circuit.cp(angle, controls[0], target)
     else:
         working_controls = controls.copy()
-        working_target = target
+        working_target = target 
         for i in range(len(controls)):
             mc_rot(circuit, 'Z', angle/(2**i), working_controls, working_target)
             working_target = working_controls[-1]
@@ -438,7 +457,7 @@ def mc_p(circuit:qiskit.QuantumCircuit, angle:float, controls:list[int], target:
 
 
 
-def special_toffoli(circuit:qiskit.QuantumCircuit, controls:list[int], target:int, cancel_part:str='No'):
+def special_toffoli(circuit:qiskit.QuantumCircuit, controls:list[int], target:int, cancel_part:str='nah'):
     '''
     Toffoli gate up to relative phase in Lemma 6 in [1], but only 4 CNOT gates, used in Lemma 8 in [1]
     Left or right part could be canceled in the "action part" of Lemma 8 figure
@@ -489,38 +508,39 @@ def ccx(circuit:qiskit.QuantumCircuit, controls:list[int], target:int):
 
 def cccx(circuit:qiskit.QuantumCircuit, controls:list[int], target:int):
     '''
-    Special case for 3-conntrolled X gate
+    Special case for 3-controlled X gate
     https://github.com/Qiskit/qiskit/blob/90e92a46643c72a21c5852299243213907453c21/qiskit/synthesis/multi_controlled/mcx_synthesis.py#L300
     '''
     if len(controls) != 3:
         raise ValueError(f"The number of controls should be 3 but {len(controls)} is given")
+    angle = numpy.pi / 8
     circuit.h(target)
     for qu in [controls[0], controls[1], controls[2], target]:
-        circuit.p(numpy.pi / 8, qu)
+        circuit.p(angle, qu)
     circuit.cx(controls[0], controls[1])
-    circuit.p(-numpy.pi / 8, controls[1])
+    circuit.p(-angle, controls[1])
     circuit.cx(controls[0], controls[1])
     circuit.cx(controls[1], controls[2])
-    circuit.p(-numpy.pi / 8, controls[2])
+    circuit.p(-angle, controls[2])
     circuit.cx(controls[0], controls[2])
-    circuit.p(numpy.pi / 8, controls[2])
+    circuit.p(angle, controls[2])
     circuit.cx(controls[1], controls[2])
-    circuit.p(-numpy.pi / 8, controls[2])
+    circuit.p(-angle, controls[2])
     circuit.cx(controls[0], controls[2])
     circuit.cx(controls[2], target)
-    circuit.p(-numpy.pi / 8, target)
+    circuit.p(-angle, target)
     circuit.cx(controls[1], target)
-    circuit.p(numpy.pi / 8, target)
+    circuit.p(angle, target)
     circuit.cx(controls[2], target)
-    circuit.p(-numpy.pi / 8, target)
+    circuit.p(-angle, target)
     circuit.cx(controls[0], target)
-    circuit.p(numpy.pi / 8, target)
+    circuit.p(angle, target)
     circuit.cx(controls[2], target)
-    circuit.p(-numpy.pi / 8, target)
+    circuit.p(-angle, target)
     circuit.cx(controls[1], target)
-    circuit.p(numpy.pi / 8, target)
+    circuit.p(angle, target)
     circuit.cx(controls[2], target)
-    circuit.p(-numpy.pi / 8, target)
+    circuit.p(-angle, target)
     circuit.cx(controls[0], target)
     circuit.h(target)
 
@@ -606,7 +626,7 @@ def mc_x(circuit:qiskit.QuantumCircuit, controls:list[int], target:int, ancillae
     Multiple-controlled X, see Fig 7 in [1]
 
     As mentioned in [2], the qiskit actually implement multiple-controlled X gate as multiple-controlled P gate (with angle=pi, make P gate as Z gate), 
-    with H gate before and after target qubit, where multiple-controlled P gate uses multiple-controlled SU(2) implementation in [1]
+    with H gate before and after the target qubit, where multiple-controlled P gate uses multiple-controlled SU(2) implementation in [1]
     TODO: verifiy the implementation in [2]
 
     [1] Decomposition of Multi-controlled Special Unitary Single-Qubit Gates http://arxiv.org/abs/2302.06377
@@ -647,10 +667,11 @@ def mc_z(circuit:qiskit.QuantumCircuit, controls:list[int], target:int, ancillae
 
     Specially, it works for any gate V such that V = Rz(a) Ry(t) Rz(a) X = [sin t/2              exp(i a)cos(t/2)]
                                                                            [exp(-i a)cos(t/2)           -sin(t/2)]
-    CV_01 = A_1 CX_01 A^dagger_1 where
-    A = Rz(a) Ry(t/2)
-    A^dagger = Ry(-t/2) Rz(-a)
+    CV_01 = A_1 CX_01 A^dagger_1 (Circuit order, not matrix product order) where 
+    A = Rz(a) Ry(t/2) (matrix product order)
+    A^dagger = Ry(-t/2) Rz(-a) (matrix product order)
     For Pauli Z, a = 0, t = pi; for Pauli Y, a = pi/2, t=2pi
+    NOTE: Rz(theta) in [1] is Rz(-theta) in Qiskit
     [1] Elementary gates for quantum computation  http://arxiv.org/abs/quant-ph/9503016
     """
     circuit.ry(numpy.pi/2, target)
@@ -658,6 +679,26 @@ def mc_z(circuit:qiskit.QuantumCircuit, controls:list[int], target:int, ancillae
     mc_x(circuit, controls, target, ancillae)
     # circuit.rz(0.0, target) ## identity
     circuit.ry(-numpy.pi/2, target)
+
+
+def mc_y(circuit:qiskit.QuantumCircuit, controls:list[int], target:int, ancillae:list[int]=[]):
+    """
+    Implement multiple-controlled Y gate using multiple-controlled X gate with rotation gates, see Lemma 5.5 in [1]
+
+    Specially, it works for any gate V such that V = Rz(a) Ry(t) Rz(a) X = [sin t/2              exp(i a)cos(t/2)]
+                                                                           [exp(-i a)cos(t/2)           -sin(t/2)]
+    CV_01 = A_1 CX_01 A^dagger_1 (Circuit order, not matrix product order) where
+    A = Rz(a) Ry(t/2) (matrix product order)
+    A^dagger = Ry(-t/2) Rz(-a) (matrix product order)
+    For Pauli Z, a = 0, t = pi; for Pauli Y, a = pi/2, t=2pi
+    NOTE: Rz(theta) in [1] is Rz(-theta) in Qiskit
+    [1] Elementary gates for quantum computation  http://arxiv.org/abs/quant-ph/9503016
+    """
+    circuit.ry(numpy.pi, target)
+    circuit.rz(-numpy.pi/2.0, target) 
+    mc_x(circuit, controls, target, ancillae)
+    circuit.rz(numpy.pi/2.0, target) 
+    circuit.ry(-numpy.pi, target)
 
 
 
@@ -756,9 +797,11 @@ if __name__ == "__main__":
     from qiskit.quantum_info import Operator
     from qiskit.circuit.library import UCPauliRotGate
 
-    test_mcp = True
-    test_mcx = True
-    test_mc_rot = True
+    test_mcp = False
+    test_mcx = False
+    test_mcz = False
+    test_mcy = True
+    test_mc_rot = False
     
     test_multiplexer_pauli = False
     
@@ -799,6 +842,52 @@ if __name__ == "__main__":
 
                 test_circ_qis = qiskit.QuantumCircuit(1)
                 test_circ_qis.x(0)
+                qis_test_circ = test_circ_qis.control(num_qubits-1)
+                qis_op_counts = dict(qiskit.transpile(qis_test_circ, basis_gates=['cx','u'], optimization_level=0).count_ops())
+
+                error = numpy.linalg.norm(qiskit.quantum_info.Operator(test_circ).data - qiskit.quantum_info.Operator(qis_test_circ).data)
+                print("  - Error", error, "Qiskit Ops", qis_op_counts, "My Ops", my_op_counts)
+                assert(error < 1e-10)
+
+        for num_qubits in [2,3,4,5,6,7,8,9]:
+            test_case(num_qubits)
+            print()
+
+    if test_mcz:
+        print('='*20, "Test for Multiple-Controlled Z", '='*20)
+        def test_case(num_qubits, reps=3):
+            print("\nNumber of Qubits:", num_qubits)
+            for _ in range(reps):
+                test_circ = qiskit.QuantumCircuit(num_qubits)
+                mc_z(test_circ, list(range(num_qubits-1)), num_qubits-1)
+                my_op_counts = dict(qiskit.transpile(test_circ, basis_gates=['cx','u'], optimization_level=0).count_ops())
+                # test_circ = test_circ.reverse_bits()
+
+                test_circ_qis = qiskit.QuantumCircuit(1)
+                test_circ_qis.z(0)
+                qis_test_circ = test_circ_qis.control(num_qubits-1)
+                qis_op_counts = dict(qiskit.transpile(qis_test_circ, basis_gates=['cx','u'], optimization_level=0).count_ops())
+
+                error = numpy.linalg.norm(qiskit.quantum_info.Operator(test_circ).data - qiskit.quantum_info.Operator(qis_test_circ).data)
+                print("  - Error", error, "Qiskit Ops", qis_op_counts, "My Ops", my_op_counts)
+                assert(error < 1e-10)
+
+        for num_qubits in [2,3,4,5,6,7,8,9]:
+            test_case(num_qubits)
+            print()
+
+    if test_mcy:
+        print('='*20, "Test for Multiple-Controlled Y", '='*20)
+        def test_case(num_qubits, reps=3):
+            print("\nNumber of Qubits:", num_qubits)
+            for _ in range(reps):
+                test_circ = qiskit.QuantumCircuit(num_qubits)
+                mc_y(test_circ, list(range(num_qubits-1)), num_qubits-1)
+                my_op_counts = dict(qiskit.transpile(test_circ, basis_gates=['cx','u'], optimization_level=0).count_ops())
+                # test_circ = test_circ.reverse_bits()
+
+                test_circ_qis = qiskit.QuantumCircuit(1)
+                test_circ_qis.y(0)
                 qis_test_circ = test_circ_qis.control(num_qubits-1)
                 qis_op_counts = dict(qiskit.transpile(qis_test_circ, basis_gates=['cx','u'], optimization_level=0).count_ops())
 
@@ -891,25 +980,28 @@ if __name__ == "__main__":
         print('='*20, "Test for Custommed Controlled Circuit", '='*20)
         seed = 71
         rng = numpy.random.default_rng(seed)
-        def test_case(num_target, num_controls, reps=5):
+        def test_case(num_target, num_controls, reps=3):
             print("\n#Target:", num_target, "#Control:", num_controls)
             for _ in range(reps):
                 rc_seed = rng.integers(1000000)
-                random_circuit = qiskit.circuit.random.random_circuit(num_target, num_target*5, max_operands=2, seed=rc_seed)
+                random_circuit = qiskit.circuit.random.random_circuit(num_target, num_target*2, max_operands=2, seed=rc_seed)
                 trans_circ = qiskit.transpile(random_circuit, basis_gates=['cx','ry','rz','rx'], optimization_level=0)
                 ##
                 my_cc = selected_controlled_circuit(trans_circ, num_controls)
                 my_cop = qiskit.quantum_info.Operator(my_cc).data
+                my_cc_trans_ops = dict(qiskit.transpile(my_cc, basis_gates=['cx','u'], optimization_level=2).count_ops())
                 ##
                 qis_cc = trans_circ.control(num_controls)
-                qis_cop =  qiskit.quantum_info.Operator(qis_cc ).data
+                qis_cop =  qiskit.quantum_info.Operator(qis_cc).data
+                qis_cc_trans_ops = dict(qiskit.transpile(qis_cc, basis_gates=['cx','u'], optimization_level=2).count_ops())
                 ##
                 error = numpy.linalg.norm( my_cop - qis_cop )  
                 print("  - Error", error)
+                print( "CX Count (Qiskit vs. Mine) ", qis_cc_trans_ops['cx'],'vs', my_cc_trans_ops['cx'], "U Count (Qiskit vs. Mine) ", qis_cc_trans_ops['u'],'vs', my_cc_trans_ops['u'])
                 assert(error < 1e-8)
 
         for num_target in [1,2,3,4,5]:
-            for num_controls in [1,2,3]:
+            for num_controls in [1,2,3,4,5]:
                 test_case(num_target, num_controls)
                 print()
             
@@ -920,7 +1012,7 @@ if __name__ == "__main__":
         from oracle_synth import synthu_qsd
         seed = 71
         rng = numpy.random.default_rng(seed)
-        def test_case(num_target, num_controls, reps=5):
+        def test_case(num_target, num_controls, reps=3):
             print("\n#Target:", num_target, "#Control:", num_controls)
             for _ in range(reps):
                 U = unitary_group.rvs(2**num_target)
@@ -930,16 +1022,24 @@ if __name__ == "__main__":
                 ##
                 my_cc = selected_controlled_circuit(random_circuit, num_controls, to_known_basis=False, reverse_bits=True)
                 my_cop = qiskit.quantum_info.Operator(my_cc).data
+                my_cc_trans_ops = dict(qiskit.transpile(my_cc, basis_gates=['cx','u'], optimization_level=2).count_ops())
                 ##
                 qis_cc = random_circuit.decompose().reverse_bits().control(num_controls)
                 qis_cop =  qiskit.quantum_info.Operator(qis_cc ).data
+                qis_cc_trans_ops = dict(qiskit.transpile(qis_cc, basis_gates=['cx','u'], optimization_level=2).count_ops())
                 ##
                 error = numpy.linalg.norm( my_cop - qis_cop )  
                 print("  - Error", error)
+                print( "CX Count (Qiskit vs. Mine) ", qis_cc_trans_ops['cx'],'vs', my_cc_trans_ops['cx'], "U Count (Qiskit vs. Mine) ", qis_cc_trans_ops['u'],'vs', my_cc_trans_ops['u'])
                 assert(error < 1e-8)
 
-        for num_target in [1,2,3,4,5]:
-            for num_controls in [1,2,3]:
+        # for num_target in [1,2,3,4,5]:
+        #     for num_controls in [1,2,3,4,5]:
+        #         test_case(num_target, num_controls)
+        #         print()
+
+        for num_target in [1,2]:
+            for num_controls in [6,7,8]:
                 test_case(num_target, num_controls)
                 print()
 

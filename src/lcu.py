@@ -7,6 +7,7 @@ import numpy
 # import qiskit.quantum_info as qi
 from oracle_synth import *
 from utils_synth import *
+from utils_synth import _ACCEPTED_GATES
 
 
 
@@ -77,7 +78,7 @@ def prep_oracle(coeff_array: list, qiskit_api:bool=False) -> numpy.array:
     
 
 
-def select_oracle(unitary_array: list[numpy.ndarray], qiskit_api:bool=False) -> qiskit.QuantumCircuit:
+def select_oracle(unitary_array: list[numpy.ndarray], qiskit_api:bool=False, debug:bool=False) -> qiskit.QuantumCircuit:
     ## See (7.55) in https://arxiv.org/pdf/2201.08309
     num_terms = len(unitary_array)
     num_qubits_control = nearest_num_qubit(num_terms)
@@ -88,15 +89,38 @@ def select_oracle(unitary_array: list[numpy.ndarray], qiskit_api:bool=False) -> 
     for i in range(num_terms):
         ibin = bin_string.format(i)[::-1] ## NOTE: Qiskit uses reverse order
         if qiskit_api:
+            # u_gate = qiskit.transpile(qiskit.circuit.library.UnitaryGate(unitary_array[i]).definition, basis_gates=['rz', 'ry', 'rx','x', 'z','p','cx','cz'], optimization_level=1)
+            # control_u = u_gate.control(num_qubits_control)
             control_u = qiskit.circuit.library.UnitaryGate(unitary_array[i]).control(num_qubits_control)
         else:
             # qsd_circuit = qiskit.QuantumCircuit(num_qubits_op)
             # qsd_circuit.append(qiskit.circuit.library.UnitaryGate(unitary_array[i]), range(num_qubits_op))
             qsd_circuit = synthu_qsd(unitary_array[i])
-            qsd_circuit = qiskit.transpile(qsd_circuit, basis_gates=['rz', 'ry', 'rx','x', 'z','p','cx','cz'], optimization_level=1)
+            qsd_circuit = qiskit.transpile(qsd_circuit, basis_gates=_ACCEPTED_GATES, optimization_level=1)
             qsd_circuit.name = "U"+str(i)
             control_u = selected_controlled_circuit(qsd_circuit, num_qubits_control, 
                            to_known_basis=False, reverse_bits=True)   ## NOTE:synthu_qsd not follow qiskit rule in my implementation
+        if debug:
+            my_u = synthu_qsd(unitary_array[i])
+            my_u = qiskit.transpile(my_u, basis_gates=_ACCEPTED_GATES, optimization_level=0)
+            qis_u = qiskit.circuit.library.UnitaryGate(unitary_array[i])
+            qis_u = qiskit.transpile(qis_u.definition, basis_gates=["p", "x", "z", "rx", "ry", "rz", "cx"], optimization_level=0)
+            my_transu = qiskit.transpile(my_u, basis_gates=['cx','u'], optimization_level=2)
+            qis_transu = qiskit.transpile(qis_u, basis_gates=['cx','u'], optimization_level=2)
+            ##
+            my_cu = selected_controlled_circuit(my_u, num_qubits_control, 
+                           to_known_basis=False, reverse_bits=False)
+            qis_cu = qis_u.to_gate().control(num_qubits_control)
+            my_transcu = qiskit.transpile(my_cu, basis_gates=['cx','u'], optimization_level=2)
+            qis_transcu = qiskit.transpile(qis_cu.definition, basis_gates=['cx','u'], optimization_level=2)
+            ##
+            print(" --DEBUG Select Oracle--")
+            print(unitary_array[i])
+            print("   U Gate Count (Qis vs. Mine):", opc_str(qis_transu.count_ops()), opc_str(my_transu.count_ops()))
+            print("  CU Gate Count (Qis vs. Mine):", opc_str(qis_transcu.count_ops()), opc_str(my_transcu.count_ops()))
+            print()
+
+
         ## For 0-control
         for q in range(len(ibin)):
             qbit = ibin[q]
@@ -113,7 +137,7 @@ def select_oracle(unitary_array: list[numpy.ndarray], qiskit_api:bool=False) -> 
     select_circ.name = 'SELECT'
     return select_circ
 
-def lcu_generator(coeff_array:list, unitary_array: list[numpy.ndarray], initial_state_circ=None,verbose:int=0, qiskit_api:bool=False) -> qiskit.QuantumCircuit:
+def lcu_generator(coeff_array:list, unitary_array: list[numpy.ndarray], initial_state_circ=None,verbose:int=0, qiskit_api:bool=False, debug:bool=False) -> qiskit.QuantumCircuit:
     '''
     NOTE: Check example usage for big endian
     NOTE: initial_state_circ in big endian (not qiskit one anyway)
@@ -150,13 +174,14 @@ def lcu_generator(coeff_array:list, unitary_array: list[numpy.ndarray], initial_
     coef_abs, coef_phase = vec_mag_angles(coeff_array)
     absorbed_unitaries = [numpy.exp(1j*coef_phase[i])*unitary_array[i] for i in range(len(unitary_array))]
     ##
-    prep_circ = prep_oracle(coef_abs, qiskit_api=qiskit_api)
-    select_circ = select_oracle(absorbed_unitaries, qiskit_api=qiskit_api)
     num_terms = len(absorbed_unitaries)
     num_qubits_control = nearest_num_qubit(num_terms)
     num_qubits_op = int(numpy.log2(absorbed_unitaries[0].shape[0]))
     if verbose > 0:
         print("  LCU-Oracle: num_qubits_control=", num_qubits_control, "num_qubits_op=", num_qubits_op)
+    ##
+    prep_circ = prep_oracle(coef_abs, qiskit_api=qiskit_api)
+    select_circ = select_oracle(absorbed_unitaries, qiskit_api=qiskit_api, debug=debug)
     ##
     lcu_circ = qiskit.QuantumCircuit(num_qubits_control+num_qubits_op)
     if initial_state_circ:
