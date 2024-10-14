@@ -778,15 +778,15 @@ def mc_rot(circuit:qiskit.QuantumCircuit, axis:str, angle:float, controls:list[i
         mc_x(circuit, k2_controls, target, k1_controls)
         circuit.rz(0.25*angle, target)
 
-## wrapper
-def mc_rx(circuit:qiskit.QuantumCircuit, angle:float, controls:list[int], target:int):
-    mc_rot(circuit, 'X', angle, controls, target)
+# ## wrapper
+# def mc_rx(circuit:qiskit.QuantumCircuit, angle:float, controls:list[int], target:int):
+#     mc_rot(circuit, 'X', angle, controls, target)
 
-def mc_ry(circuit:qiskit.QuantumCircuit, angle:float, controls:list[int], target:int):
-    mc_rot(circuit, 'Y', angle, controls, target)
+# def mc_ry(circuit:qiskit.QuantumCircuit, angle:float, controls:list[int], target:int):
+#     mc_rot(circuit, 'Y', angle, controls, target)
 
-def mc_rz(circuit:qiskit.QuantumCircuit, angle:float, controls:list[int], target:int):
-    mc_rot(circuit, 'Z', angle, controls, target)
+# def mc_rz(circuit:qiskit.QuantumCircuit, angle:float, controls:list[int], target:int):
+#     mc_rot(circuit, 'Z', angle, controls, target)
 
 
 
