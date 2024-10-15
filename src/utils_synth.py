@@ -88,6 +88,7 @@ _ACCEPTED_GATES = ['rx','ry','rz','x','y','z','cx','cy','cz','p'] ## gates imple
 
 
 def opc_str(op_count_dict):
+    ## pretty print for op_counts()
     OP_str = ''
     op_count_dict = dict(op_count_dict)
     for k,v in op_count_dict.items():
