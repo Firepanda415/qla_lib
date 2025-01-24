@@ -267,6 +267,16 @@ def class_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
         print("  Step size h1 =", h1)
         print("  Number of nodes in [mh_1, (m+1)h_1] Q =", Q)
         print("  Total number of nodes M =", M)
+        ## truncation error bound, (62) in [1]
+        oneoverbeta_ceil = int(numpy.ceil(1/beta))
+        truncation_error_bound_num = 2**(oneoverbeta_ceil+1)*scipy.special.factorial(oneoverbeta_ceil)*numpy.exp(-0.5*(K**beta)*numpy.cos(beta*numpy.pi*0.5))
+        truncation_error_bound_denom = cbeta(beta)*(numpy.cos(beta*numpy.pi*0.5)**oneoverbeta_ceil)*K
+        truncation_error_bound = truncation_error_bound_num/truncation_error_bound_denom
+        print("  Truncation error bound =", truncation_error_bound)
+        ## quadrature error bound, (64) in [1]
+        quadrature_error_bound = 8/(3*cbeta(beta))*K*h1**(2*Q) * (0.5*numpy.exp(1)*tT*numpy.linalg.norm(L,ord=2))**(2*Q)
+        print("  Quadrature error bound =", quadrature_error_bound)
+        print("  Total error bound =", truncation_error_bound + quadrature_error_bound)
     ##
     res_mat = numpy.zeros(A.shape, dtype=complex)
     c_sum = 0 ## compute ||c||_1
@@ -368,7 +378,8 @@ def class_lchs_tips(A:numpy.matrix, u0:numpy.matrix, func_bt:Callable[[complex],
 ## Homogenous Part of the Solution
 def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsilon:float, 
                     trunc_multiplier=2, trotterLH:bool=False,
-                    qiskit_api:bool=False, verbose:int=0, debug:bool=False) -> tuple[numpy.matrix,numpy.matrix]: 
+                    qiskit_api:bool=False, verbose:int=0, 
+                    debug:bool=False, rich_return:bool=False) -> tuple[numpy.matrix,numpy.matrix]: 
     '''
     Solve Homogeneous IVP du/dt = -Au(t) with u(0) = u0
     Input:
@@ -401,8 +412,20 @@ def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
         print("  Step size h1 =", h1)
         print("  Number of nodes in [mh_1, (m+1)h_1] Q =", Q)
         print("  Total number of nodes M =", M)
+        ## truncation error bound, (62) in [1]
+        oneoverbeta_ceil = int(numpy.ceil(1/beta))
+        truncation_error_bound_num = 2**(oneoverbeta_ceil+1)*scipy.special.factorial(oneoverbeta_ceil)*numpy.exp(-0.5*(K**beta)*numpy.cos(beta*numpy.pi*0.5))
+        truncation_error_bound_denom = cbeta(beta)*(numpy.cos(beta*numpy.pi*0.5)**oneoverbeta_ceil)*K
+        truncation_error_bound = truncation_error_bound_num/truncation_error_bound_denom
+        print("  Truncation error bound =", truncation_error_bound)
+        ## quadrature error bound, (64) in [1]
+        quadrature_error_bound = 8/(3*cbeta(beta))*K*h1**(2*Q) * (0.5*numpy.exp(1)*tT*numpy.linalg.norm(L,ord=2))**(2*Q)
+        print("  Quadrature error bound =", quadrature_error_bound)
+        print("  Total error bound =", truncation_error_bound + quadrature_error_bound)
     ##
     c_sum = 0 ## compute ||c||_1
+    coeffs_unrot = []
+    unitaries_unrot = []
     coeffs = []
     unitaries = []
     for munshit in range(2*kh1):
@@ -417,11 +440,13 @@ def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
             else:
                 umat = utk(tT, kqms[qi], L, H)
             ## Collect coeffs and unitaries for w_q*g(k_{q,m})*U(T, k_{q,m}) ## (61) in [1] (This should be quantum)
-            if numpy.abs(numpy.angle(cqm)) > 1e-12:
-                cqm = cqm/numpy.exp(1j*numpy.angle(cqm)) ## absorb the phase to the unitaries
-                umat = numpy.exp(1j*numpy.angle(cqm))*umat
-            coeffs.append(cqm)
-            unitaries.append(umat)
+            coeffs_unrot.append(cqm)
+            unitaries_unrot.append(umat)
+            # if numpy.abs(numpy.angle(cqm)) > 1e-12:
+            #     cqm = cqm/numpy.exp(1j*numpy.angle(cqm)) ## absorb the phase to the unitaries
+            #     umat = numpy.exp(1j*numpy.angle(cqm))*umat
+            # coeffs.append(cqm)
+            # unitaries.append(umat)
     if verbose > 0:
         print("  ||c||_1 =", c_sum)
 
@@ -437,7 +462,7 @@ def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
         
     ## Obtain the linear combination by LCU
     # lcu_circ = lcu_generator(coeffs, unitaries, initial_state_circ=state_prep_circ, qiskit_api=qiskit_api) ## NOTE: the return circuit is in qiskit order
-    lcu_circ = lcu_generator(coeffs, unitaries, initial_state_circ=None, verbose=verbose, qiskit_api=qiskit_api, debug=debug) ## NOTE: the return circuit is in qiskit order
+    lcu_circ, coeffs, unitaries, coeffs_1norm = lcu_generator(coeffs_unrot, unitaries_unrot, initial_state_circ=None, verbose=verbose, qiskit_api=qiskit_api, debug=debug) ## NOTE: the return circuit is in qiskit order
     if trotterLH:
         exph_circ = qiskit.QuantumCircuit(int(numpy.log2(H.shape[0])))
         synthu_qsd(utk_H(tT, 0.5*H), exph_circ) ## exp(i(A+B)) approx exp(iA/2) exp(iB) exp(iA/2), (4.104) in Nielsen and Chuang (10th anniversary edition)
@@ -458,21 +483,18 @@ def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
 
     # print(Warning("Simulation is DISABLED for a quick test"))
     circ_op = qiskit.quantum_info.Operator( lcu_circ ).data ## LCU has reversed qubits
-    sum_op = qiskit_normal_order_switch( circ_op[:H.shape[0],:H.shape[1]] ) ## See lcu_generator use case example
+    sum_op = coeffs_1norm * qiskit_normal_order_switch( circ_op[:L.shape[0],:L.shape[1]] ) ## See lcu_generator use case example
     ## Compute u0
     u0_norm = u0/numpy.linalg.norm(u0,ord=2)
     uT = sum_op.dot(u0_norm)
 
     # uT = qiskit.quantum_info.Statevector(lcu_circ).data[:H.shape[0]]
-    ##
+    ##\
+    if rich_return:
+        return uT, lcu_circ, circ_op, coeffs, unitaries, coeffs_unrot, unitaries_unrot
     return uT, lcu_circ
 
 ##----------------------------------------------------------------------------------------------------------------
-
-
-
-
-
 
 
 

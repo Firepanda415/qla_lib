@@ -192,7 +192,7 @@ def lcu_generator(coeff_array:list, unitary_array: list[numpy.ndarray], initial_
     lcu_circ.append(select_circ, list(range(num_qubits_control+num_qubits_op)))
     ## Apply the preparation oracle dagger
     lcu_circ.append(prep_circ.inverse(), list(range(num_qubits_control)))
-    return lcu_circ.reverse_bits()
+    return lcu_circ.reverse_bits(), coef_abs, absorbed_unitaries, numpy.sum(coef_abs)
 
 
 
