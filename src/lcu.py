@@ -160,8 +160,6 @@ def lcu_generator(coeff_array:list, unitary_array: list[numpy.ndarray], initial_
             ## need the endianness switch for each coordinates on submatrix
             ## Only in this case, numpy.linalg.norm(correct_answer - lcu_sol, ord=2) gives no error
     '''
-    ##
-    ## Absorb the phase into the unitaries
     def vec_mag_angles(complex_vector:numpy.ndarray):
         norm_vector = numpy.array(complex_vector)
         for i in range(len(complex_vector)):
@@ -171,15 +169,20 @@ def lcu_generator(coeff_array:list, unitary_array: list[numpy.ndarray], initial_
             else:
                 norm_vector[i] = 0
         return numpy.abs(complex_vector), numpy.angle(norm_vector)
-    coef_abs, coef_phase = vec_mag_angles(coeff_array)
-    absorbed_unitaries = [numpy.exp(1j*coef_phase[i])*unitary_array[i] for i in range(len(unitary_array))]
+    ## Check if all coefficients are non-negative
+    if numpy.allclose(numpy.abs(coeff_array), coeff_array, rtol=1e-12, atol=1e-12):
+        coef_abs = coeff_array.real
+        absorbed_unitaries = unitary_array
+    else:
+        ## Absorb the phase into the unitaries
+        coef_abs, coef_phase = vec_mag_angles(coeff_array)
+        absorbed_unitaries = [numpy.exp(1j*coef_phase[i])*unitary_array[i] for i in range(len(unitary_array))]
     ##
     num_terms = len(absorbed_unitaries)
     num_qubits_control = nearest_num_qubit(num_terms)
     num_qubits_op = int(numpy.log2(absorbed_unitaries[0].shape[0]))
     if verbose > 0:
         print("  LCU-Oracle: num_qubits_control=", num_qubits_control, "num_qubits_op=", num_qubits_op)
-    ##
     prep_circ = prep_oracle(coef_abs, qiskit_api=qiskit_api)
     select_circ = select_oracle(absorbed_unitaries, qiskit_api=qiskit_api, debug=debug)
     ##

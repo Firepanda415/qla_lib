@@ -475,11 +475,10 @@ def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
     if verbose > 0:
         trans_lcu_opt0 = qiskit.transpile(lcu_circ, basis_gates=['cx', 'u'], optimization_level=0)
         trans_lcu_opt2 = qiskit.transpile(lcu_circ, basis_gates=['cx', 'u'], optimization_level=2)
-        print("\n  Transpiled LCU Circ Stats (Opt 0):", trans_lcu_opt0.count_ops())
+        print("  Transpiled LCU Circ Stats (Opt 0):", trans_lcu_opt0.count_ops())
         print("    Circuit Depth (Opt 0):", trans_lcu_opt0.depth())
-        print("\n  Transpiled LCU Circ Stats (Opt 2):", trans_lcu_opt2.count_ops())
+        print("  Transpiled LCU Circ Stats (Opt 2):", trans_lcu_opt2.count_ops())
         print("    Circuit Depth (Opt 2):", trans_lcu_opt2.depth())
-        print()
 
     # print(Warning("Simulation is DISABLED for a quick test"))
     circ_op = qiskit.quantum_info.Operator( lcu_circ ).data ## LCU has reversed qubits
