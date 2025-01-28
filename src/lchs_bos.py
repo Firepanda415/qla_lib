@@ -230,6 +230,32 @@ def bos_gate(theta, num_qubits_per_qumode, return_circ=False):
 
 #----------------------------------------------------------------------------------------------------------------
 
+
+def split_complex_array(complex_array: numpy.ndarray):
+    """Split complex array into 4 arrays based on signs of real and imaginary parts.
+    Returns:
+        real_nonneg: array with real non-negative parts (0 elsewhere)
+        real_neg: array with real negative parts (0 elsewhere)
+        imag_nonneg: array with imaginary non-negative parts (0 elsewhere) 
+        imag_neg: array with imaginary negative parts (0 elsewhere)
+    """
+    # Initialize arrays with zeros
+    real_nonneg = numpy.zeros_like(complex_array, dtype=complex)
+    real_neg = numpy.zeros_like(complex_array, dtype=complex)
+    imag_nonneg = numpy.zeros_like(complex_array, dtype=complex)
+    imag_neg = numpy.zeros_like(complex_array, dtype=complex)
+    
+    # Split real parts
+    real_parts = complex_array.real
+    real_nonneg[real_parts >= 0] = numpy.abs(real_parts[real_parts >= 0])
+    real_neg[real_parts < 0] = numpy.abs(real_parts[real_parts < 0])  # Store as positive values
+    
+    # Split imaginary parts
+    imag_parts = complex_array.imag
+    imag_nonneg[imag_parts >= 0] = numpy.abs(imag_parts[imag_parts >= 0])
+    imag_neg[imag_parts < 0] = numpy.abs(imag_parts[imag_parts < 0])  # Store as positive values
+    return real_nonneg, real_neg, imag_nonneg, imag_neg
+
 def bos_prolong_select_oracle(theta_array, num_qubits_per_qumode, debug:bool=False) -> qiskit.QuantumCircuit:
     ## See (7.55) in https://arxiv.org/pdf/2201.08309
     num_terms = len(theta_array)
@@ -259,13 +285,8 @@ def bos_prolong_select_oracle(theta_array, num_qubits_per_qumode, debug:bool=Fal
             print("num_qubits_per_qumode =", num_qubits_per_qumode)
             print("num_qubits_control =", num_qubits_control)
             raise
-        ## Sanwitch back the multiple-control X targeting ancilla qubit
-        select_circ.mcx(qbr, qbr_ancilla[0])
-        ## UNDO the X gate for 0-control
-        for q in range(len(ibin)):
-            qbit = ibin[q]
-            if qbit == '0':
-                select_circ.x(q)
+        ## reset to undo the computation
+        select_circ.Reset(qbr_ancilla[0])
     ##
     select_circ.name = 'SELECT'
     return select_circ ## NOTE: in qiskit order
@@ -276,17 +297,22 @@ def bos_prolong_lcu(coeff_array:numpy.array, theta_array:numpy.array, num_qubits
     num_qubits_control = nearest_num_qubit(num_terms)
     num_qubits_op = num_qubits_per_qumode
     ## separate the real and imaginary parts
-    real_coeffs = coeff_array.real/numpy.linalg.norm(coeff_array.real,ord=1)
-    imag_coeffs = coeff_array.imag/numpy.linalg.norm(coeff_array.imag,ord=1)
+    real_nonneg, real_neg, imag_nonneg, imag_neg = split_complex_array(coeff_array)
+    norm_real_nonneg = numpy.sum(real_nonneg)
+    norm_real_neg = numpy.sum(real_neg)
+    norm_imag_nonneg = numpy.sum(imag_nonneg)
+    norm_imag_neg = numpy.sum(imag_neg)
     print("LCU bos debug")
-    print(real_coeffs)
-    print(imag_coeffs)
+    recon_coeff = (real_nonneg-real_neg)+1j*(imag_nonneg-imag_neg)
+    print("  Coeff Reconstruction error =", numpy.linalg.norm(recon_coeff-coeff_array,ord=2))
+
     ## prep circuit for real and imag parts
-    real_prep_circ = prep_oracle(real_coeffs, qiskit_api=qiskit_api)
-    imag_prep_circ = prep_oracle(imag_coeffs, qiskit_api=qiskit_api)
+    real_nonneg_prep_circ = prep_oracle(real_nonneg, qiskit_api=qiskit_api)
+    real_neg_prep_circ = prep_oracle(real_neg, qiskit_api=qiskit_api)
+    imag_nonneg_prep_circ = prep_oracle(imag_nonneg, qiskit_api=qiskit_api)
+    imag_neg_prep_circ = prep_oracle(imag_neg, qiskit_api=qiskit_api)
     ## select circuit for real and imag parts
-    real_select_circ = bos_prolong_select_oracle(theta_array, num_qubits_per_qumode, debug=debug)
-    imag_select_circ = bos_prolong_select_oracle(theta_array, num_qubits_per_qumode, debug=debug)
+    select_circ = bos_prolong_select_oracle(theta_array, num_qubits_per_qumode, debug=debug)
 
     ## prolonged LCU circuit
     ## use 1 extra ancilla qubit to take the result of multiple-control, 
@@ -294,35 +320,53 @@ def bos_prolong_lcu(coeff_array:numpy.array, theta_array:numpy.array, num_qubits
     qbr = qiskit.QuantumRegister(num_qubits_control)
     qbr_ancilla = qiskit.QuantumRegister(1)
     qmr = c2qa.QumodeRegister(num_qumodes=1, num_qubits_per_qumode=num_qubits_per_qumode)
-    ## Real part
-    lcu_circ_real = c2qa.CVCircuit(qbr, qbr_ancilla, qmr)
+    ## Real Non-negative part
+    lcu_circ_real_nonneg = c2qa.CVCircuit(qbr, qbr_ancilla, qmr)
     if initial_state_circ:
-        lcu_circ_real.append(initial_state_circ.copy(), list(range(num_qubits_control+num_qubits_op+1))[num_qubits_control:])
+        lcu_circ_real_nonneg.append(initial_state_circ.copy(), list(range(num_qubits_control+num_qubits_op+1))[num_qubits_control:])
     ## Apply the preparation oracle
-    lcu_circ_real.append(real_prep_circ, list(range(num_qubits_control)))
+    lcu_circ_real_nonneg.append(real_nonneg_prep_circ, list(range(num_qubits_control)))
     ## Apply the selection oracle
-    lcu_circ_real.append(real_select_circ, list(range(num_qubits_control+num_qubits_op+1)))
+    lcu_circ_real_nonneg.append(select_circ.copy(), list(range(num_qubits_control+num_qubits_op+1)))
     ## Apply the preparation oracle dagger
-    lcu_circ_real.append(real_prep_circ.inverse(), list(range(num_qubits_control)))
+    lcu_circ_real_nonneg.append(real_nonneg_prep_circ.inverse(), list(range(num_qubits_control)))
 
-
-    ## Imaginary part
-    qbr_imag = qiskit.QuantumRegister(num_qubits_control)
-    qbr_ancilla_imag = qiskit.QuantumRegister(1)
-    qmr_imag = c2qa.QumodeRegister(num_qumodes=1, num_qubits_per_qumode=num_qubits_per_qumode)
-    lcu_circ_imag = c2qa.CVCircuit(qbr_imag, qbr_ancilla_imag, qmr_imag)
+    ## Real Negative part
+    lcu_circ_real_neg = c2qa.CVCircuit(qbr, qbr_ancilla, qmr)
     if initial_state_circ:
-        lcu_circ_imag.append(initial_state_circ.copy(), list(range(num_qubits_control+num_qubits_op+1))[num_qubits_control:])
+        lcu_circ_real_neg.append(initial_state_circ.copy(), list(range(num_qubits_control+num_qubits_op+1))[num_qubits_control:])
     ## Apply the preparation oracle
-    lcu_circ_imag.append(imag_prep_circ, list(range(num_qubits_control)))
+    lcu_circ_real_neg.append(real_neg_prep_circ, list(range(num_qubits_control)))
     ## Apply the selection oracle
-    lcu_circ_imag.append(imag_select_circ, list(range(num_qubits_control+num_qubits_op+1)))
+    lcu_circ_real_neg.append(select_circ.copy(), list(range(num_qubits_control+num_qubits_op+1)))
     ## Apply the preparation oracle dagger
-    lcu_circ_imag.append(imag_prep_circ.inverse(), list(range(num_qubits_control)))
+    lcu_circ_real_neg.append(real_neg_prep_circ.inverse(), list(range(num_qubits_control)))
 
-    return lcu_circ_real.reverse_bits(), lcu_circ_imag.reverse_bits() ## NOTE: i.e., not in qiskit order after reverse_bits
+    ## Imaginary Non-negative part
+    lcu_circ_imag_nonneg = c2qa.CVCircuit(qbr, qbr_ancilla, qmr)
+    if initial_state_circ:
+        lcu_circ_imag_nonneg.append(initial_state_circ.copy(), list(range(num_qubits_control+num_qubits_op+1))[num_qubits_control:])
+    ## Apply the preparation oracle
+    lcu_circ_imag_nonneg.append(imag_nonneg_prep_circ, list(range(num_qubits_control)))
+    ## Apply the selection oracle
+    lcu_circ_imag_nonneg.append(select_circ.copy(), list(range(num_qubits_control+num_qubits_op+1)))
+    ## Apply the preparation oracle dagger
+    lcu_circ_imag_nonneg.append(imag_nonneg_prep_circ.inverse(), list(range(num_qubits_control)))
 
+    ## Imaginary Negative part
+    lcu_circ_imag_neg = c2qa.CVCircuit(qbr, qbr_ancilla, qmr)
+    if initial_state_circ:
+        lcu_circ_imag_neg.append(initial_state_circ.copy(), list(range(num_qubits_control+num_qubits_op+1))[num_qubits_control:])
+    ## Apply the preparation oracle
+    lcu_circ_imag_neg.append(imag_neg_prep_circ, list(range(num_qubits_control)))
+    ## Apply the selection oracle
+    lcu_circ_imag_neg.append(select_circ.copy(), list(range(num_qubits_control+num_qubits_op+1)))
+    ## Apply the preparation oracle dagger
+    lcu_circ_imag_neg.append(imag_neg_prep_circ.inverse(), list(range(num_qubits_control)))
 
+    return_circs = [lcu_circ_real_nonneg.reverse_bits(), lcu_circ_real_neg.reverse_bits(), lcu_circ_imag_nonneg.reverse_bits(), lcu_circ_imag_neg.reverse_bits()]
+    return_norms = [norm_real_nonneg, norm_real_neg, norm_imag_nonneg, norm_imag_neg]
+    return return_circs, return_norms  ## NOTE: i.e., not in qiskit order after reverse_bits
 
 ## Homogenous Part of the Solution
 def lchs_coeffs_unitaries(Acoef_list:List, num_qubits_per_qumode, u0:numpy.matrix, tT:float, beta:float, epsilon:float, 
@@ -386,27 +430,27 @@ def lchs_coeffs_unitaries(Acoef_list:List, num_qubits_per_qumode, u0:numpy.matri
 def bos_pro_long_lchs_tihs(Acoef_list:List, num_qubits_per_qumode:int, u0:numpy.matrix, tT:float, beta:float, epsilon:float, 
                     trunc_multiplier=2, trotterLH:bool=True,
                     qiskit_api:bool=True, verbose:int=0, debug:bool=False): 
+    data_dim = 2**num_qubits_per_qumode
     L_coefs,H_coefs = bos_cart_decomp(Acoef_list)
     coeffs, thetas = lchs_coeffs_unitaries(Acoef_list, num_qubits_per_qumode, u0, tT, beta, epsilon, 
                     trunc_multiplier=trunc_multiplier, trotterLH=trotterLH, verbose=verbose, debug=debug)
-    lcu_circ_real, lcu_circ_imag = bos_prolong_lcu(coeffs, thetas, num_qubits_per_qumode, initial_state_circ=None, verbose=verbose, qiskit_api=qiskit_api, debug=debug)
+    lcu_circ_array, lcu_circ_norms = bos_prolong_lcu(coeffs, thetas, num_qubits_per_qumode, initial_state_circ=None, verbose=verbose, qiskit_api=qiskit_api, debug=debug)
+    # return order is real nonnega, real neg, imag nonnega, imag neg
     if trotterLH:
         if abs(H_coefs[0]) > 1e-12:
             ## exp(i(A+B)) approx exp(iA/2) exp(iB) exp(iA/2), (4.104) in Nielsen and Chuang (10th anniversary edition)
             exph_circ = bos_gate(tT*H_coefs[0]/2, num_qubits_per_qumode, return_circ=True).reverse_bits()
-            lcu_circ_real.compose(exph_circ, qubits=range(exph_circ.num_qubits), front=True, inplace=True)
-            lcu_circ_real.compose(exph_circ, qubits=range(exph_circ.num_qubits), front=False, inplace=True)
-            lcu_circ_imag.compose(exph_circ, qubits=range(exph_circ.num_qubits), front=True, inplace=True)
-            lcu_circ_imag.compose(exph_circ, qubits=range(exph_circ.num_qubits), front=False, inplace=True)
+            for cir in lcu_circ_array:
+                cir.compose(exph_circ, qubits=range(exph_circ.num_qubits), front=True, inplace=True)
+                cir.compose(exph_circ, qubits=range(exph_circ.num_qubits), front=False, inplace=True)
     if verbose > 0:
-        print("  Number of Qubits:", lcu_circ_real.num_qubits, ", ",lcu_circ_imag.num_qubits)
+        print("  Number of Qubits:", lcu_circ_array[0].num_qubits, ", ",lcu_circ_array[0].num_qubits)
     # print(Warning("Simulation is DISABLED for a quick test"))
-    circ_op_real = qiskit.quantum_info.Operator( lcu_circ_real ).data ## LCU has reversed qubits
-    circ_op_imag = qiskit.quantum_info.Operator( lcu_circ_imag ).data ## LCU has reversed qubits
-    sum_op_real = qiskit_normal_order_switch( circ_op_real[:2**num_qubits_per_qumode,:2**num_qubits_per_qumode] ) ## See lcu_generator use case example
-    sum_op_imag = qiskit_normal_order_switch( circ_op_imag[:2**num_qubits_per_qumode,:2**num_qubits_per_qumode] ) ## See lcu_generator use case example
+    circ_op_array = [qiskit.quantum_info.Operator( cir ).data for cir in lcu_circ_array] ## LCU has reversed qubits
+    sum_op_array = [lcu_circ_norms[i]*qiskit_normal_order_switch(circ_op_array[i][:data_dim,:data_dim]) for i in range(len(circ_op_array))] ## See lcu_generator use case example
+
     ## Compute u0
-    u0_norm = u0/numpy.linalg.norm(u0,ord=2)
-    uT_real = sum_op_real.dot(u0_norm)
-    uT_imag = sum_op_imag.dot(u0_norm)
-    return uT_real, uT_imag, lcu_circ_real, lcu_circ_imag, circ_op_real, circ_op_imag, coeffs, thetas
+    u0_norm = numpy.array(u0/numpy.linalg.norm(u0,ord=2), dtype=complex)
+    uT_array = [sum_op_array[i].dot(u0_norm) for i in range(len(sum_op_array))]
+    uT = (uT_array[0] - uT_array[1]) + 1j*(uT_array[2] - uT_array[3])
+    return uT, uT_array, lcu_circ_array, sum_op_array, coeffs, thetas

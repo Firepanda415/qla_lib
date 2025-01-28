@@ -61,6 +61,10 @@ def prep_oracle(coeff_array: list, qiskit_api:bool=False) -> numpy.array:
     num_terms = len(coeff_array)
     num_qubits = nearest_num_qubit(num_terms)
     l1norm = numpy.linalg.norm(coeff_array, ord=1)
+    ## Check if all coefficients are non-negative
+    if not numpy.allclose(numpy.abs(coeff_array), coeff_array, rtol=1e-12, atol=1e-12):
+        raise ValueError("All coefficients should be non-negative, but we have", coeff_array)
+    ##
     coeff_array_normedsqrt = numpy.sqrt(numpy.abs(coeff_array)/l1norm)
     full_coeffs = [0]*(2**num_qubits)
     full_coeffs[:num_terms] = coeff_array_normedsqrt
