@@ -17,6 +17,8 @@ import scipy
 import qiskit
 from typing import Callable
 
+from oracle_synth import *
+
 ######
 ## LCHS for Time-independent ODE IVP
 
@@ -379,6 +381,7 @@ def class_lchs_tips(A:numpy.matrix, u0:numpy.matrix, func_bt:Callable[[complex],
 def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsilon:float, 
                     trunc_multiplier=2, trotterLH:bool=False,
                     qiskit_api:bool=False, verbose:int=0, 
+                    no_state_prep:bool=False,
                     debug:bool=False, rich_return:bool=False) -> tuple[numpy.matrix,numpy.matrix]: 
     '''
     Solve Homogeneous IVP du/dt = -Au(t) with u(0) = u0
@@ -399,6 +402,7 @@ def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
     from utils_synth import qiskit_normal_order_switch, qiskit_normal_order_switch_vec
     from oracle_synth import synthu_qsd, stateprep_ucr
     ##
+    u0_norm = u0/numpy.linalg.norm(u0,ord=2)
     L,H = cart_decomp(A)
     h1 = step_size_h1(tT, L)  ## step size h1 for [-K, K], (65) in [1]
     K = trunc_multiplier*trunc_K(beta, epsilon, h1) ## integral range -K to K, (63) in [1] ## "2" here is just for higher accuracy since formula is big-O
@@ -449,20 +453,11 @@ def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
             # unitaries.append(umat)
     if verbose > 0:
         print("  ||c||_1 =", c_sum)
-
-    # ## State Preparation
-    # u0_norm = numpy.array( u0/numpy.linalg.norm(u0,ord=2) ).flatten()
-    # if qiskit_api:
-    #     state_prep_circ = qiskit.QuantumCircuit(int(numpy.log2(H.shape[0])))
-    #     state_prep_circ.initialize(u0_norm)
-    #     state_prep_circ = state_prep_circ.reverse_bits() ## my lcu do not use qiskit order
-    # else:
-    #     state_prep_circ = qiskit.QuantumCircuit(int(numpy.log2(H.shape[0])))
-    #     stateprep_ucr(u0_norm, state_prep_circ)
         
     ## Obtain the linear combination by LCU
     # lcu_circ = lcu_generator(coeffs, unitaries, initial_state_circ=state_prep_circ, qiskit_api=qiskit_api) ## NOTE: the return circuit is in qiskit order
     lcu_circ, coeffs, unitaries, coeffs_1norm = lcu_generator(coeffs_unrot, unitaries_unrot, initial_state_circ=None, verbose=verbose, qiskit_api=qiskit_api, debug=debug) ## NOTE: the return circuit is in qiskit order
+    num_control_qubits = nearest_num_qubit(len(coeffs))
     if trotterLH:
         exph_circ = qiskit.QuantumCircuit(int(numpy.log2(H.shape[0])))
         synthu_qsd(utk_H(tT, 0.5*H), exph_circ) ## exp(i(A+B)) approx exp(iA/2) exp(iB) exp(iA/2), (4.104) in Nielsen and Chuang (10th anniversary edition)
@@ -480,18 +475,39 @@ def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
         print("  Transpiled LCU Circ Stats (Opt 2):", trans_lcu_opt2.count_ops())
         print("    Circuit Depth (Opt 2):", trans_lcu_opt2.depth())
 
-    # print(Warning("Simulation is DISABLED for a quick test"))
-    circ_op = qiskit.quantum_info.Operator( lcu_circ ).data ## LCU has reversed qubits
-    sum_op = coeffs_1norm * qiskit_normal_order_switch( circ_op[:L.shape[0],:L.shape[1]] ) ## See lcu_generator use case example
-    ## Compute u0
-    u0_norm = u0/numpy.linalg.norm(u0,ord=2)
-    uT = sum_op.dot(u0_norm)
 
-    # uT = qiskit.quantum_info.Statevector(lcu_circ).data[:H.shape[0]]
-    ##\
+    if no_state_prep:
+        # print(Warning("Simulation is DISABLED for a quick test"))
+        print(">> State preparation for initial condition is DISABLED <<")
+        circ_op = qiskit.quantum_info.Operator( lcu_circ ).data ## LCU has reversed qubits
+        sum_op = coeffs_1norm * qiskit_normal_order_switch( circ_op[:L.shape[0],:L.shape[1]] ) ## See lcu_generator use case example
+        ## Compute u0
+        uT = sum_op.dot(u0_norm)
+
+        # uT = qiskit.quantum_info.Statevector(lcu_circ).data[:H.shape[0]]
+        ##\
+        if rich_return:
+            return uT, lcu_circ, circ_op, coeffs, unitaries, coeffs_unrot, unitaries_unrot
+        return uT, lcu_circ
+
+    ## State Preparation
+    u0_norm_flatten = numpy.array(u0_norm).flatten() ## do not accept numpy.matrix
+    state_prep_circ = qiskit.QuantumCircuit(int(numpy.log2(H.shape[0])))
+    if qiskit_api:
+        state_prep_circ.initialize(u0_norm_flatten)
+        state_prep_circ = state_prep_circ.reverse_bits() ## my lcu do not use qiskit order
+    else:
+        stateprep_ucr(u0_norm, state_prep_circ)
+    lcu_circ.compose(state_prep_circ, qubits=range(exph_circ.num_qubits), front=True, inplace=True)
+
+    ## extra state vector when last (as I did not follow qiskit order) num_control_qubits of control qubits are in state |0>
+    full_sv = qiskit.quantum_info.Statevector(lcu_circ).data
+    uT = full_sv[:H.shape[0]]
+    uT = coeffs_1norm*qiskit_normal_order_switch_vec(uT) ## no need to normalize
     if rich_return:
-        return uT, lcu_circ, circ_op, coeffs, unitaries, coeffs_unrot, unitaries_unrot
+        return uT, lcu_circ, full_sv, coeffs, unitaries, coeffs_unrot, unitaries_unrot, 
     return uT, lcu_circ
+
 
 ##----------------------------------------------------------------------------------------------------------------
 

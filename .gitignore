@@ -1,3 +1,6 @@
+# Ignore files in c2qa/
+c2qa/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

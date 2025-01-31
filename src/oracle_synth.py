@@ -182,7 +182,10 @@ def kak_decomp(matrix:numpy.ndarray, debug:bool=False):
     ZZ = numpy.kron(Z, Z)
     mat_recon = numpy.exp(1j*phase_angle) * (numpy.kron(K1l, K1r).dot( scipy.linalg.expm(1j*(c0*XX+c1*YY+c2*ZZ)) ).dot(numpy.kron(K2l,K2r)))
     if not numpy.linalg.norm(mat_recon - matrix) < _ATOL_MAT:
-        raise ValueError("The decomposition is not correct for ", matrix)
+        print(f"   >>> KAK decomposition error: K1: {K1}, K2: {K2} <<<")
+        print(f"   >>> KAK decomposition error: mat_expphase = {mat_expphase}, expphase1 = {expphase1}, expphase2 = {expphase2} <<<")
+        print(f"   >>> KAK decomposition error: total_expphase = {total_expphase}, phase_angle = {phase_angle}, c0 = {c0}, c1 = {c1}, c2 = {c2} <<<")
+        raise ValueError(f"The decomposition is not correct with error {numpy.linalg.norm(mat_recon - matrix)} for ", mat_recon, " and ", matrix)
     
     if debug:
         IZ = numpy.kron(I, Z) 

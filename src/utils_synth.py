@@ -8,6 +8,8 @@ import qiskit
 
 _ACCEPTED_GATES = ['rx','ry','rz','x','y','z','cx','cy','cz','p'] ## gates implemented in the controlled version
 
+## TODO: Urgent: failure for decompose_one_qubit_product() RuntimeWarning: divide by zero encountered in det
+
 ## TODO: verify implemnentation of controlled-P
 
 # # I: 00 -> 0
@@ -148,11 +150,13 @@ def mat_egh2su(mat):
     """
     # mat_det = detm(mat.tolist())
     mat_det = numpy.linalg.det(mat)
+    # print(f"  >>> mat = {mat} <<<")
+    # print(f"  >>> mat_det = {mat_det} <<<")
     if type(mat) == numpy.ndarray:
         mat_dim = mat.shape[0]
     else:
         mat_dim = len(mat)
-    return mat_det ** (-1/mat_dim)
+    return complex(mat_det) ** (-1/mat_dim)
 
 def mat_normdet1(mat: numpy.ndarray) -> numpy.ndarray:
     """
@@ -166,7 +170,6 @@ def mat_normdet1(mat: numpy.ndarray) -> numpy.ndarray:
     """
     expphase = mat_egh2su(mat)
     return numpy.array(mat) * expphase
-
 
 
 ## From https://github.com/mpham26uchicago/laughing-umbrella/blob/main/background/Full%20Two%20Qubit%20KAK%20Implementation.ipynb
