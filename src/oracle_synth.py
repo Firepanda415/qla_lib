@@ -590,11 +590,23 @@ def stateprep_ucr(init_state:numpy.ndarray, circuit:qiskit.QuantumCircuit, debug
 
 
 
+## ----------------------------------------- For Pauli String Exponent ----------------------------------------- ##
 
-
-
-
-
+def pauli_expoent_circ(time:float, coeff_arr:numpy.ndarray, pauli_arr:list[str], qiskit_api:bool=False):
+    '''
+    coeff_arr: numpy array, coefficients of the linear combination of Pauli strings
+    pauli_arr: list of strings, Pauli strings
+    '''
+    num_qubits = int(numpy.log2(len(pauli_arr[0])))
+    circ = qiskit.QuantumCircuit(num_qubits)
+    if qiskit_api:
+        from qiskit.circuit.library import PauliEvolutionGate
+        from qiskit.quantum_info import SparsePauliOp
+        pauli_op = SparsePauliOp(pauli_arr, coeff_arr)
+        circ.append(PauliEvolutionGate(pauli_op, time=time), list(range(num_qubits)))
+    else:
+        raise NotImplementedError("Not implemented yet")
+    return circ
 
 
 

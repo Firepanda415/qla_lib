@@ -19,6 +19,8 @@ from typing import Callable
 
 from oracle_synth import *
 
+
+
 ######
 ## LCHS for Time-independent ODE IVP
 
@@ -42,7 +44,7 @@ def cart_decomp(A:numpy.matrix, eigcheck=True) -> tuple[numpy.matrix,numpy.matri
     """
     ## Return L and H
     L = 0.5*(A+A.conjugate().transpose())
-    H = -0.5j*(A-A.conjugate().transpose())
+    H = 0.5j*(A-A.conjugate().transpose())
 
     ## Check if L is positive semidefinite
     if eigcheck:
@@ -456,7 +458,7 @@ def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
         
     ## Obtain the linear combination by LCU
     # lcu_circ = lcu_generator(coeffs, unitaries, initial_state_circ=state_prep_circ, qiskit_api=qiskit_api) ## NOTE: the return circuit is in qiskit order
-    lcu_circ, coeffs, unitaries, coeffs_1norm = lcu_generator(coeffs_unrot, unitaries_unrot, initial_state_circ=None, verbose=verbose, qiskit_api=qiskit_api, debug=debug) ## NOTE: the return circuit is in qiskit order
+    lcu_circ, coeffs, unitaries, coeffs_1norm = lcu_generator(coeffs_unrot, unitaries_unrot, initial_state_circ=None, verbose=verbose, qiskit_api=qiskit_api, debug=debug) ## NOTE: the return circuit is NOT in qiskit order
     num_control_qubits = nearest_num_qubit(len(coeffs))
     if trotterLH:
         exph_circ = qiskit.QuantumCircuit(int(numpy.log2(H.shape[0])))
@@ -498,7 +500,7 @@ def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
         state_prep_circ = state_prep_circ.reverse_bits() ## my lcu do not use qiskit order
     else:
         stateprep_ucr(u0_norm, state_prep_circ)
-    lcu_circ.compose(state_prep_circ, qubits=range(exph_circ.num_qubits), front=True, inplace=True)
+    lcu_circ.compose(state_prep_circ, qubits=range(int(numpy.log2(H.shape[0]))), front=True, inplace=True)
 
     ## extra state vector when last (as I did not follow qiskit order) num_control_qubits of control qubits are in state |0>
     full_sv = qiskit.quantum_info.Statevector(lcu_circ).data
@@ -510,6 +512,10 @@ def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
 
 
 ##----------------------------------------------------------------------------------------------------------------
+
+
+
+
 
 
 

@@ -341,6 +341,7 @@ def rot_helper(circuit:qiskit.QuantumCircuit,
     """
     Helper function for apply 1-qubit rotation gate
     """
+    angle = float(angle)
     if abs(angle) <1e-12:
         return
     if axis.capitalize() == 'X':
@@ -370,6 +371,7 @@ def uc_angles(angles:list[float]) -> list[float]:
     [1] Transformation of quantum states using uniformly controlled rotations 10.1103/PhysRevLett.93.130502  (Published version is preferred)
     """
     ## since we only care the inverse of the coefficient matrix, compute the transpose directly
+    angles = numpy.array(angles).flatten()
     coeff_mat_T = numpy.zeros((len(angles), len(angles)), dtype=int) ## transpose of the coefficient matrix
     for i in range(len(angles)):
         for j in range(len(angles)):
@@ -387,7 +389,7 @@ def multiplexer_rot(circuit:qiskit.QuantumCircuit,
     For 2+-qubit multiplexor, see Fig 2 in [1] and Theorem 8 in [2]
     For angles, see Eq. (5) in [1]
     Should be the same as the implementation in Qiskit [3]
-    NOTE: THE LAST CNOT IS LEFT OUT, THE CORRECT ONE IS CALLED IN THE WRAPPER FUNCTION multiplexer_pauli()
+    NOTE: THE LAST CNOT IS LEFT OUT, THE CORRECTION IS CALLED IN THE WRAPPER FUNCTION multiplexer_pauli()
     [1] Quantum Circuits for General Multiqubit Gates 10.1103/PhysRevLett.93.130502  (Published version is preferred)
     [2] Synthesis of Quantum Logic Circuits https://arxiv.org/abs/quant-ph/0406176
     [3] https://github.com/Qiskit/qiskit/blob/cb486e6a312dccfcbb4d88e8f21d93455d1ddf82/qiskit/circuit/library/generalized_gates/uc_pauli_rot.py#L32-L164

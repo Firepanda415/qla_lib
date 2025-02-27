@@ -202,6 +202,138 @@ def lcu_generator(coeff_array:list, unitary_array: list[numpy.ndarray], initial_
     return lcu_circ.reverse_bits(), coef_abs, absorbed_unitaries, numpy.sum(coef_abs)
 
 
+## ----------------------------------------- For Pauli String Exponent ----------------------------------------- ##
+def select_oracle_pauli(num_terms:int,
+                        coeff_arr:numpy.ndarray, pauli_arr:list[str],
+                        global_phases:numpy.ndarray = [],
+                        qiskit_api:bool=False, debug:bool=False) -> qiskit.QuantumCircuit:
+    ## NOTE: because we cannot absorb phases into each unitary matrix directly (in this case each unitary is the exponential of Pauli)
+    ## we need to provide the global phases for each Pauli evoluation circuit
+    # num_terms = len(time_array)
+    if len(global_phases) > 0 and len(global_phases) != num_terms:
+        raise ValueError(f"The number of global phases should be the same as the number of terms, but we have {len(global_phases)} phases and {num_terms} terms")
+    num_qubits_control = nearest_num_qubit(num_terms)
+    num_qubits_op = len(pauli_arr[0])
+    bin_string = '{0:0'+str(num_qubits_control)+'b}'
+    ##
+    select_circ = qiskit.QuantumCircuit(num_qubits_control+num_qubits_op)
+    for i in range(num_terms):
+        ibin = bin_string.format(i)[::-1] ## NOTE: Qiskit uses reverse order
+        u_circ = pauli_expoent_circ(1, coeff_arr, pauli_arr, qiskit_api=qiskit_api)
+        if len(global_phases) > 0:
+            u_circ.global_phase = global_phases[i]
+        control_u = u_circ.control(num_qubits_control)
+        if debug:
+            print() ## TODO: debug
+        ## For 0-control
+        for q in range(len(ibin)):
+            qbit = ibin[q]
+            if qbit == '0':
+                select_circ.x(q)
+        ## Apply the controlled-U gate
+        select_circ.append( control_u, list(range(num_qubits_control+num_qubits_op)) )
+        ## UNDO the X gate for 0-control
+        for q in range(len(ibin)):
+            qbit = ibin[q]
+            if qbit == '0':
+                select_circ.x(q)
+    ##
+    select_circ.name = 'SELECT'
+    return select_circ
+
+
+def lcu_generator_pauli(time_array:numpy.ndarray, 
+                        pauli_coeff_array:numpy.ndarray,
+                        pauli_string_array:list,
+                        initial_state_circ=None,verbose:int=0, qiskit_api:bool=False, debug:bool=False) -> qiskit.QuantumCircuit:
+    '''
+    NOTE: Check example usage for big endian
+    NOTE: initial_state_circ in big endian (not qiskit one anyway)
+    Example usage in big endian:
+            rng = numpy.random.Generator(numpy.random.PCG64(726348874394184524479665820111))
+            scipy_uni = scipy.stats.unitary_group
+            scipy_uni.random_state = rng
+            ##
+            test_coefs =  rng.random(2**n)
+            test_coefs_normed = test_coefs/numpy.linalg.norm(test_coefs, ord=1)
+            test_unitaries = [scipy_uni.rvs(2**n) for _ in range(2**n)]
+            ##
+            correct_answer = numpy.zeros(test_unitaries[0].shape, dtype=complex)
+            for i in range(len(test_coefs_normed)):
+                correct_answer += test_coefs_normed[i]*test_unitaries[i]
+            ##
+            LCU = lcu_generator(test_coefs, test_unitaries, verbose=1, qiskit_api=qiskit_api)
+            circ_mat = qiskit.quantum_info.Operator(LCU).data
+            lcu_sol = qiskit_normal_order_switch(circ_mat[:test_unitaries[0].shape[0],:test_unitaries[0].shape[1]]) 
+            ## need the endianness switch for each coordinates on submatrix
+            ## Only in this case, numpy.linalg.norm(correct_answer - lcu_sol, ord=2) gives no error
+    '''
+    def vec_mag_angles(complex_vector:numpy.ndarray):
+        norm_vector = numpy.array(complex_vector)
+        for i in range(len(complex_vector)):
+            entry_norm = numpy.abs(complex_vector[i])
+            if entry_norm > 1e-12:
+                norm_vector[i] = complex_vector[i]
+            else:
+                norm_vector[i] = 0
+        return numpy.abs(complex_vector), numpy.angle(norm_vector)
+    ## Check if all coefficients are non-negative
+    if numpy.allclose(numpy.abs(time_array), time_array, rtol=1e-12, atol=1e-12):
+        time_abs = time_array.real
+        absorbed_pauli_coeffs = pauli_coeff_array
+    else:
+        ## Absorb the phase into the unitaries
+        time_abs, time_phase = vec_mag_angles(time_array)
+        absorbed_pauli_coeffs = numpy.array([ numpy.exp(1j*time_phase[i])*pauli_coeff_array[i] for i in range(len(pauli_coeff_array)) ])
+    ##
+    num_terms = len(time_array)
+    num_qubits_control = nearest_num_qubit(num_terms)
+    num_qubits_op = len(pauli_string_array[0])
+    if verbose > 0:
+        print("  LCU-Oracle: num_qubits_control=", num_qubits_control, "num_qubits_op=", num_qubits_op)
+    prep_circ = prep_oracle(time_abs, qiskit_api=qiskit_api)
+    select_circ = select_oracle_pauli(num_terms, pauli_coeff_array, pauli_string_array, time_phase, qiskit_api=qiskit_api, debug=debug)
+    ##
+    lcu_circ = qiskit.QuantumCircuit(num_qubits_control+num_qubits_op)
+    if initial_state_circ:
+        lcu_circ.append(initial_state_circ, list(range(num_qubits_control+num_qubits_op))[num_qubits_control:])
+    ## Apply the preparation oracle
+    lcu_circ.append(prep_circ, list(range(num_qubits_control)))
+    ## Apply the selection oracle
+    lcu_circ.append(select_circ, list(range(num_qubits_control+num_qubits_op)))
+    ## Apply the preparation oracle dagger
+    lcu_circ.append(prep_circ.inverse(), list(range(num_qubits_control)))
+    return lcu_circ.reverse_bits(), time_abs, time_phase, numpy.sum(time_abs)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
