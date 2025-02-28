@@ -148,15 +148,15 @@ def mat_egh2su(mat):
     Returns:
     complex: The global phase of the matrix.
     """
-    # mat_det = detm(mat.tolist())
     mat_det = numpy.linalg.det(mat)
-    # print(f"  >>> mat = {mat} <<<")
-    # print(f"  >>> mat_det = {mat_det} <<<")
     if type(mat) == numpy.ndarray:
         mat_dim = mat.shape[0]
     else:
         mat_dim = len(mat)
     return complex(mat_det) ** (-1/mat_dim)
+
+
+
 
 def mat_normdet1(mat: numpy.ndarray) -> numpy.ndarray:
     """
@@ -172,33 +172,33 @@ def mat_normdet1(mat: numpy.ndarray) -> numpy.ndarray:
     return numpy.array(mat) * expphase
 
 
-## From https://github.com/mpham26uchicago/laughing-umbrella/blob/main/background/Full%20Two%20Qubit%20KAK%20Implementation.ipynb
-def decompose_one_qubit_product(Umat: numpy.ndarray):
-    """
-    Decompose a 4x4 unitary matrix to two 2x2 unitary matrices.
-    Args:
-        U (numpy.ndarray): input 4x4 unitary matrix to decompose.
-    Returns:
-        exp_phase (float): exp(1j*global phase).
-        U1 (numpy.ndarray): decomposed unitary matrix U1.
-        U2 (numpy.ndarray): decomposed unitary matrix U2.
-    """
-    i, j = numpy.unravel_index(numpy.argmax(Umat, axis=None), Umat.shape)
+# ## From https://github.com/mpham26uchicago/laughing-umbrella/blob/main/background/Full%20Two%20Qubit%20KAK%20Implementation.ipynb
+# def decompose_one_qubit_product(Umat: numpy.ndarray):
+#     """
+#     Decompose a 4x4 unitary matrix to two 2x2 unitary matrices.
+#     Args:
+#         U (numpy.ndarray): input 4x4 unitary matrix to decompose.
+#     Returns:
+#         exp_phase (float): exp(1j*global phase).
+#         U1 (numpy.ndarray): decomposed unitary matrix U1.
+#         U2 (numpy.ndarray): decomposed unitary matrix U2.
+#     """
+#     i, j = numpy.unravel_index(numpy.argmax(Umat, axis=None), Umat.shape)
 
-    def u1_set(i):
-        return (1, 3) if i % 2 else (0, 2)
-    def u2_set(i):
-        return (0, 1) if i < 2 else (2, 3)
+#     def u1_set(i):
+#         return (1, 3) if i % 2 else (0, 2)
+#     def u2_set(i):
+#         return (0, 1) if i < 2 else (2, 3)
 
-    u1 = Umat[numpy.ix_(u1_set(i), u1_set(j))]
-    u2 = Umat[numpy.ix_(u2_set(i), u2_set(j))]
+#     u1 = Umat[numpy.ix_(u1_set(i), u1_set(j))]
+#     u2 = Umat[numpy.ix_(u2_set(i), u2_set(j))]
 
-    u1 = mat_normdet1(u1)
-    u2 = mat_normdet1(u2)
+#     u1 = mat_normdet1(u1)
+#     u2 = mat_normdet1(u2)
 
-    exp_phase = Umat[i, j] / (u1[i // 2, j // 2] * u2[i % 2, j % 2])
+#     exp_phase = Umat[i, j] / (u1[i // 2, j // 2] * u2[i % 2, j % 2])
 
-    return exp_phase, u1, u2
+#     return exp_phase, u1, u2
 
 #--------------------------------   
 

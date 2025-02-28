@@ -155,7 +155,7 @@ def norm_Xi(t0:float, tT:float, p:int, func_btp:Callable[[complex], complex]) ->
     ## func_btp: function to compute the p-th derivative of b(t)
     ## Output
     ## \Xi, largest norm \|b^{(p)}\|^{1/(p+1)} over p and t
-    time_slices = 100
+    time_slices = 1000
     time_points = numpy.linspace(t0, tT, time_slices)
     max_norm = 0
     for time_point in time_points:
@@ -171,7 +171,7 @@ def norm_bL1(t0:float, tT:float, func_bt:Callable[[complex], complex]) -> float:
     ## t0: start time
     ## tT: end time
     ## func_bt: function to compute b(t)
-    time_slices = 100
+    time_slices = 1000
     samp_points, weights = numpy.polynomial.legendre.leggauss(time_slices)
     time_step = (tT-t0)
     weights = 0.5*time_step*weights
@@ -299,8 +299,10 @@ def class_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
         res_mat = utk_H(tT,  0.5*H) @ res_mat @ utk_H(tT, 0.5*H) ## exp(i(A+B)) approx exp(iA/2) exp(iB) exp(iA/2), (4.104) in Nielsen and Chuang (10th anniversary edition)
     if verbose>0:
         print("  ||c||_1 =", c_sum)
-    u0_norm = u0/numpy.linalg.norm(u0,ord=2)
-    uT = res_mat.dot(u0_norm)
+        print("  ||u0||_2 =", numpy.linalg.norm(u0,ord=2))
+    # u0_norm = u0/numpy.linalg.norm(u0,ord=2)
+    # uT = res_mat.dot(u0_norm)
+    uT = res_mat.dot(u0)
     return res_mat, uT
 
 
@@ -322,17 +324,17 @@ def class_lchs_tips(A:numpy.matrix, u0:numpy.matrix, func_bt:Callable[[complex],
     '''
     ## Lemma 12 in [1]
     L,H = cart_decomp(A)
-    bL1 = norm_bL1(0, T, func_bt)
+    bL1 = norm_bL1(0, tT, func_bt) # bL1 = norm_bL1(0, T, func_bt)
     h1 = step_size_h1(tT, L)  ## step size h1 for [-K, K], (65) in [1]
     K = trunc_multiplier*trunc_K_inho(beta, epsilon, bL1, h1)
     Lam = norm_lambda(A)
-    Xi = norm_Xi(0, T, 0, func_bt)
+    Xi = norm_Xi(0, tT, 0, func_bt) # Xi = norm_Xi(0, T, 0, func_bt)
     h2 = step_size_h2(K, Lam, Xi, tT)
     Q1 = n_node_Q(beta, epsilon, K)
-    Q2 = n_node_Q2_inho(epsilon, T, Lam, Xi, 1)
+    Q2 = n_node_Q2_inho(epsilon, tT, Lam, Xi, 1) # Q2 = n_node_Q2_inho(epsilon, T, Lam, Xi, 1)
 
     kh1 = int(K/h1)
-    Th2 = int(T/h2)
+    Th2 = int(tT/h2) # Th2 = int(T/h2)
     M = int(2*kh1*Q1)
     Mp = int(Th2*Q2)
 
@@ -531,10 +533,32 @@ if __name__ == "__main__":
     ## Define random A and u0
     dim = 2**nq
     rng = numpy.random.Generator(numpy.random.PCG64(178984893489))
-    ## Random numpy
-    A = (numpy.matrix(rng.random((dim,dim)),dtype=complex)-0.5)  + 1j*(numpy.matrix(rng.random((dim,dim)),dtype=complex)-0.5)
-    A = 0.1*A + 0.25*numpy.identity(dim)
-    L,H = cart_decomp(A)
+
+
+    # ## Random numpy
+    # A = (numpy.matrix(rng.random((dim,dim)),dtype=complex)-0.5)  + 1j*(numpy.matrix(rng.random((dim,dim)),dtype=complex)-0.5)
+    # A = 0.5*A + 0.5*numpy.identity(dim)
+    # L,H = cart_decomp(A)
+
+
+    from lchs_pauli import pauli_arr_to_mat
+    hf = 8
+    A_pauli_arr = ['II', 'IX', 'XX', 'YY']
+    A_coef_arr = numpy.array([2, -1, -0.5, -0.5]) * 1/(hf**2)
+    L_pauli_arr = A_pauli_arr
+    L_coef_arr = A_coef_arr.copy()
+    H_pauli_arr = []
+    H_coef_arr = numpy.array([])
+    #
+    A = pauli_arr_to_mat(A_coef_arr, A_pauli_arr)
+    L = pauli_arr_to_mat(L_coef_arr, L_pauli_arr)
+    if len(H_pauli_arr) > 0:
+        H = pauli_arr_to_mat(H_coef_arr, H_pauli_arr)
+    else:
+        H = numpy.zeros_like(L)
+
+
+
     print(f"Norm of A: {numpy.linalg.norm(A, ord=2)}, Norm of L: {numpy.linalg.norm(L, ord=2)}, Norm of H: {numpy.linalg.norm(H, ord=2)}")
     ## Define b(t) and its first derivative as functions
     def bt(t):
@@ -548,11 +572,11 @@ if __name__ == "__main__":
 
     ## Define the time interval [0,T], beta and epsilon for LCHS parameters, epislon is the error tolerance
     T = 1
-    beta = 0.9 # 0< beta < 1
-    epsilon = 0.05 #0.05
+    beta = 0.3 # 0< beta < 1
+    epsilon = 0.001 #0.05
     tests_class_ho = True
-    tests_quant_qis = True
-    tests_quant_my = True
+    tests_quant_qis = False
+    tests_quant_my = False
     tests_quant_mytrotter = False
 
     tests_class_inho = False
@@ -573,6 +597,8 @@ if __name__ == "__main__":
     ### Scipy Homogenous solution
     spi_sol_ho = scipy.integrate.solve_ivp(ode_func_ho, [0,T],numpy.array(u0.reshape(-1))[0], method='RK45')
     spi_uT_ho = spi_sol_ho.y[:,-1]
+    if numpy.linalg.norm(spi_uT_ho.imag,ord=2) < 1e-12:
+        spi_uT_ho = spi_uT_ho.real
     spi_uT_ho_norm = spi_uT_ho/numpy.linalg.norm(spi_uT_ho,ord=2)
     ### Scipy Inhomogenous solution
     spi_sol_inho = scipy.integrate.solve_ivp(ode_func_inho, [0,T],numpy.array(u0.reshape(-1))[0], method='RK45')
@@ -590,9 +616,13 @@ if __name__ == "__main__":
         if numpy.linalg.norm(uT.imag,ord=2) < 1e-12:
             uT = uT.real
         uT_err = numpy.linalg.norm(uT - spi_uT_ho,ord=2)
-        print("  Homogeneous u(T)=", uT, "  Norm=", numpy.linalg.norm(uT,ord=2))
-        print("  SciPy Sol   u(T)=", spi_uT_ho, "  Norm=", numpy.linalg.norm(spi_uT_ho,ord=2))
-        print("  Homogeneous solution error u(T)         :", uT_err, "   Relative error:", uT_err/numpy.linalg.norm(spi_uT_ho,ord=2))
+        norm_ratio = numpy.linalg.norm(uT)/numpy.linalg.norm(spi_uT_ho)
+        uT2_err = numpy.linalg.norm(uT/norm_ratio - spi_uT_ho,ord=2)
+        print("  Homogeneous u(T)=           ", uT, "  Norm=", numpy.linalg.norm(uT,ord=2))
+        print("  SciPy Sol   u(T)=           ", spi_uT_ho, "  Norm=", numpy.linalg.norm(spi_uT_ho,ord=2))
+        print("  Homogeneous u(T)/norm_ratio=", uT/norm_ratio, "  Norm=", numpy.linalg.norm(uT/norm_ratio,ord=2))
+        print("  Homogeneous solution error u(T)           :", uT_err, "   Relative error:", uT_err/numpy.linalg.norm(spi_uT_ho,ord=2))
+        print("  Homogeneous solution error u(T)/norm_ratio:", uT2_err, "   Relative error:", uT2_err/numpy.linalg.norm(spi_uT_ho,ord=2))
 
         print("\n\nTests with Classical Subroutine (Homogeneous, w/ trotter)")
         ## Solve homogenous part
@@ -615,9 +645,13 @@ if __name__ == "__main__":
             quant_uT = quant_uT.real
 
         quant_uT_err = numpy.linalg.norm(quant_uT - spi_uT_ho,ord=2)
-        print("  Homogeneous u(T)=", quant_uT, "  Norm=", numpy.linalg.norm(quant_uT,ord=2))
-        print("  SciPy Sol   u(T)=", spi_uT_ho, "  Norm=", numpy.linalg.norm(spi_uT_ho,ord=2))
-        print("  Homogeneous solution error u(T)         :", quant_uT_err, "   Relative error:", quant_uT_err/numpy.linalg.norm(spi_uT_ho,ord=2))
+        norm_ratio = numpy.linalg.norm(quant_uT)/numpy.linalg.norm(spi_uT_ho)
+        quant_uT2_err = numpy.linalg.norm(quant_uT/norm_ratio - spi_uT_ho,ord=2)
+        print("  Homogeneous u(T)=           ", quant_uT, "  Norm=", numpy.linalg.norm(quant_uT,ord=2))
+        print("  SciPy Sol   u(T)=           ", spi_uT_ho, "  Norm=", numpy.linalg.norm(spi_uT_ho,ord=2))
+        print("  Homogeneous u(T)/norm_ratio=", quant_uT/norm_ratio, "  Norm=", numpy.linalg.norm(quant_uT/norm_ratio,ord=2))
+        print("  Homogeneous solution error u(T)           :", quant_uT_err, "   Relative error:", quant_uT_err/numpy.linalg.norm(spi_uT_ho,ord=2))
+        print("  Homogeneous solution error u(T)/norm_ratio:", quant_uT2_err, "   Relative error:", quant_uT2_err/numpy.linalg.norm(spi_uT_ho,ord=2))
 
     if tests_quant_mytrotter:
         print("\n\nTests with Quantum Trottered Subroutine (My Implementation)")
@@ -629,9 +663,13 @@ if __name__ == "__main__":
             quant_uT = quant_uT.real
 
         quant_uT_err = numpy.linalg.norm(quant_uT - spi_uT_ho,ord=2)
-        print("  Homogeneous u(T)=", quant_uT, "  Norm=", numpy.linalg.norm(quant_uT,ord=2))
-        print("  SciPy Sol   u(T)=", spi_uT_ho, "  Norm=", numpy.linalg.norm(spi_uT_ho,ord=2))
-        print("  Homogeneous solution error u(T)         :", quant_uT_err, "   Relative error:", quant_uT_err/numpy.linalg.norm(spi_uT_ho,ord=2))
+        norm_ratio = numpy.linalg.norm(quant_uT)/numpy.linalg.norm(spi_uT_ho)
+        quant_uT2_err = numpy.linalg.norm(quant_uT/norm_ratio - spi_uT_ho,ord=2)
+        print("  Homogeneous u(T)=           ", quant_uT, "  Norm=", numpy.linalg.norm(quant_uT,ord=2))
+        print("  SciPy Sol   u(T)=           ", spi_uT_ho, "  Norm=", numpy.linalg.norm(spi_uT_ho,ord=2))
+        print("  Homogeneous u(T)/norm_ratio=", quant_uT/norm_ratio, "  Norm=", numpy.linalg.norm(quant_uT/norm_ratio,ord=2))
+        print("  Homogeneous solution error u(T)           :", quant_uT_err, "   Relative error:", quant_uT_err/numpy.linalg.norm(spi_uT_ho,ord=2))
+        print("  Homogeneous solution error u(T)/norm_ratio:", quant_uT2_err, "   Relative error:", quant_uT2_err/numpy.linalg.norm(spi_uT_ho,ord=2))
 
 
     if tests_quant_qis:
@@ -641,10 +679,15 @@ if __name__ == "__main__":
         quant_uT = numpy.array(quant_uT).reshape(-1)
         if numpy.linalg.norm(quant_uT.imag,ord=2) < 1e-12:
             quant_uT = quant_uT.real
+
         quant_uT_err = numpy.linalg.norm(quant_uT - spi_uT_ho,ord=2)
-        print("  Homogeneous u(T)=", quant_uT, "  Norm=", numpy.linalg.norm(quant_uT,ord=2))
-        print("  SciPy Sol   u(T)=", spi_uT_ho, "  Norm=", numpy.linalg.norm(spi_uT_ho,ord=2))
-        print("  Homogeneous solution error u(T)         :", quant_uT_err, "   Relative error:", quant_uT_err/numpy.linalg.norm(spi_uT_ho,ord=2))
+        norm_ratio = numpy.linalg.norm(quant_uT)/numpy.linalg.norm(spi_uT_ho)
+        quant_uT2_err = numpy.linalg.norm(quant_uT/norm_ratio - spi_uT_ho,ord=2)
+        print("  Homogeneous u(T)=           ", quant_uT, "  Norm=", numpy.linalg.norm(quant_uT,ord=2))
+        print("  SciPy Sol   u(T)=           ", spi_uT_ho, "  Norm=", numpy.linalg.norm(spi_uT_ho,ord=2))
+        print("  Homogeneous u(T)/norm_ratio=", quant_uT/norm_ratio, "  Norm=", numpy.linalg.norm(quant_uT/norm_ratio,ord=2))
+        print("  Homogeneous solution error u(T)           :", quant_uT_err, "   Relative error:", quant_uT_err/numpy.linalg.norm(spi_uT_ho,ord=2))
+        print("  Homogeneous solution error u(T)/norm_ratio:", quant_uT2_err, "   Relative error:", quant_uT2_err/numpy.linalg.norm(spi_uT_ho,ord=2))
 
     
 

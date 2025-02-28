@@ -195,7 +195,7 @@ def pauli_lchs_tihs(L_coef_arr:numpy.ndarray, L_pauli_arr:list[str],
         state_prep_circ = state_prep_circ.reverse_bits() ## my lcu do not use qiskit order
     else:
         stateprep_ucr(u0_norm, state_prep_circ)
-    lcu_circ.compose(state_prep_circ, qubits=range(exph_circ.num_qubits), front=True, inplace=True)
+    lcu_circ.compose(state_prep_circ, qubits=range(int(numpy.log2(H.shape[0]))), front=True, inplace=True)
 
     ## extra state vector when last (as I did not follow qiskit order) num_control_qubits of control qubits are in state |0>
     full_sv = qiskit.quantum_info.Statevector(lcu_circ).data
@@ -223,19 +223,21 @@ if __name__ == "__main__":
     # H_coef_arr = numpy.array([0.5*(-omegasq-1)])
 
 
+    hf = 8
     A_pauli_arr = ['II', 'IX', 'XX', 'YY']
-    A_coef_arr = numpy.array([2, -1, -0.5, -0.5])
+    A_coef_arr = numpy.array([2, -1, -0.5, -0.5]) * 1/(hf**2)
     L_pauli_arr = A_pauli_arr
     L_coef_arr = A_coef_arr.copy()
     H_pauli_arr = []
     H_coef_arr = numpy.array([])
-    ##
+    #
     A = pauli_arr_to_mat(A_coef_arr, A_pauli_arr)
     L = pauli_arr_to_mat(L_coef_arr, L_pauli_arr)
     if len(H_pauli_arr) > 0:
         H = pauli_arr_to_mat(H_coef_arr, H_pauli_arr)
     else:
         H = numpy.zeros_like(L)
+
     L_verify,H_verify = cart_decomp(A)
     dim = A.shape[0]
     print(f"Norm of A: {numpy.linalg.norm(A, ord=2)}, Norm of L: {numpy.linalg.norm(L, ord=2)}, Norm of H: {numpy.linalg.norm(H, ord=2)}")
@@ -249,7 +251,7 @@ if __name__ == "__main__":
     T = 0.1
     beta = 0.9 # 0< beta < 1
     epsilon = 0.05 #0.05
-    debug = True
+    debug = False
 
 
     ## Function for Scipy
@@ -269,9 +271,14 @@ if __name__ == "__main__":
     if numpy.linalg.norm(uT.imag,ord=2) < 1e-12:
         uT = uT.real
     uT_err = numpy.linalg.norm(uT - spi_uT_ho,ord=2)
-    print("  Homogeneous u(T)=", uT, "  Norm=", numpy.linalg.norm(uT,ord=2))
-    print("  SciPy Sol   u(T)=", spi_uT_ho, "  Norm=", numpy.linalg.norm(spi_uT_ho,ord=2))
-    print("  Homogeneous solution error u(T)         :", uT_err, "   Relative error:", uT_err/numpy.linalg.norm(spi_uT_ho,ord=2))
+    norm_ratio = numpy.linalg.norm(uT)/numpy.linalg.norm(spi_uT_ho)
+    uT2_err = numpy.linalg.norm(uT/norm_ratio - spi_uT_ho,ord=2)
+    print("  Homogeneous u(T)=           ", uT, "  Norm=", numpy.linalg.norm(uT,ord=2))
+    print("  SciPy Sol   u(T)=           ", spi_uT_ho, "  Norm=", numpy.linalg.norm(spi_uT_ho,ord=2))
+    print("  Homogeneous u(T)/norm_ratio=", uT/norm_ratio, "  Norm=", numpy.linalg.norm(uT/norm_ratio,ord=2))
+    print("  Homogeneous solution error u(T)           :", uT_err, "   Relative error:", uT_err/numpy.linalg.norm(spi_uT_ho,ord=2))
+    print("  Homogeneous solution error u(T)/norm_ratio:", uT2_err, "   Relative error:", uT2_err/numpy.linalg.norm(spi_uT_ho,ord=2))
+
 
     print("\n\nTests with Classical Subroutine (Homogeneous, w/ trotter)")
     ## Solve homogenous part
@@ -292,8 +299,12 @@ if __name__ == "__main__":
     if numpy.linalg.norm(quant_uT.imag,ord=2) < 1e-12:
         quant_uT = quant_uT.real
     quant_uT_err = numpy.linalg.norm(quant_uT - spi_uT_ho,ord=2)
-    print("  Homogeneous u(T)=", quant_uT, "  Norm=", numpy.linalg.norm(quant_uT,ord=2))
-    print("  SciPy Sol   u(T)=", spi_uT_ho, "  Norm=", numpy.linalg.norm(spi_uT_ho,ord=2))
-    print("  Homogeneous solution error u(T)         :", quant_uT_err, "   Relative error:", quant_uT_err/numpy.linalg.norm(spi_uT_ho,ord=2))
+    norm_ratio = numpy.linalg.norm(quant_uT)/numpy.linalg.norm(spi_uT_ho)
+    quant_uT2_err = numpy.linalg.norm(quant_uT/norm_ratio - spi_uT_ho,ord=2)
+    print("  Homogeneous u(T)=           ", quant_uT, "  Norm=", numpy.linalg.norm(quant_uT,ord=2))
+    print("  SciPy Sol   u(T)=           ", spi_uT_ho, "  Norm=", numpy.linalg.norm(spi_uT_ho,ord=2))
+    print("  Homogeneous u(T)/norm_ratio=", quant_uT/norm_ratio, "  Norm=", numpy.linalg.norm(quant_uT,ord=2))
+    print("  Homogeneous solution error u(T)           :", quant_uT_err, "   Relative error:", quant_uT_err/numpy.linalg.norm(spi_uT_ho,ord=2))
+    print("  Homogeneous solution error u(T)/norm_ratio:", quant_uT2_err, "   Relative error:", quant_uT2_err/numpy.linalg.norm(spi_uT_ho,ord=2))
 
 
