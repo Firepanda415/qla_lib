@@ -385,7 +385,7 @@ def class_lchs_tips(A:numpy.matrix, u0:numpy.matrix, func_bt:Callable[[complex],
 def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsilon:float, 
                     trunc_multiplier=2, trotterLH:bool=False,
                     vbos_Nt:int=0,
-                    qiskit_api:bool=False, verbose:int=0, 
+                    qiskit_api:bool=True, verbose:int=0, 
                     no_state_prep:bool=False,
                     debug:bool=False, rich_return:bool=False) -> tuple[numpy.matrix,numpy.matrix]: 
     '''
@@ -476,13 +476,13 @@ def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
     if verbose > 0:
         print("  Number of Qubits:", lcu_circ.num_qubits)
 
-    if verbose > 0:
-        trans_lcu_opt0 = qiskit.transpile(lcu_circ, basis_gates=['cx', 'u'], optimization_level=0)
-        trans_lcu_opt2 = qiskit.transpile(lcu_circ, basis_gates=['cx', 'u'], optimization_level=2)
-        print("  Transpiled LCU Circ Stats (Opt 0):", trans_lcu_opt0.count_ops())
-        print("    Circuit Depth (Opt 0):", trans_lcu_opt0.depth())
-        print("  Transpiled LCU Circ Stats (Opt 2):", trans_lcu_opt2.count_ops())
-        print("    Circuit Depth (Opt 2):", trans_lcu_opt2.depth())
+    # if verbose > 0:
+        # trans_lcu_opt0 = qiskit.transpile(lcu_circ, basis_gates=['cx', 'u'], optimization_level=0)
+        # trans_lcu_opt2 = qiskit.transpile(lcu_circ, basis_gates=['cx', 'u'], optimization_level=1)
+        # print("  Transpiled LCU Circ Stats (Opt 0):", trans_lcu_opt0.count_ops())
+        # print("    Circuit Depth (Opt 0):", trans_lcu_opt0.depth())
+        # print("  Transpiled LCU Circ Stats (Opt 1):", trans_lcu_opt2.count_ops())
+        # print("    Circuit Depth (Opt 1):", trans_lcu_opt2.depth())
 
 
     if no_state_prep:
@@ -539,22 +539,21 @@ if __name__ == "__main__":
     dim = 2**nq
     rng = numpy.random.Generator(numpy.random.PCG64(178984893489))
 
+    ## Random numpy coefficients
+    A = (numpy.matrix(rng.random((dim,dim)),dtype=complex)-0.5)  + 1j*(numpy.matrix(rng.random((dim,dim)),dtype=complex)-0.5)
+    A = 0.1*A + 0.25*numpy.identity(dim)
+    L,H = cart_decomp(A)
 
-    # ## Random numpy
-    # A = (numpy.matrix(rng.random((dim,dim)),dtype=complex)-0.5)  + 1j*(numpy.matrix(rng.random((dim,dim)),dtype=complex)-0.5)
-    # A = 0.5*A + 0.5*numpy.identity(dim)
-    # L,H = cart_decomp(A)
 
-
-    from lchs_pauli import pauli_arr_to_mat
-    hf = 8
-    A_pauli_arr = ['II', 'IX', 'XX', 'YY']
-    A_coef_arr = numpy.array([2, -1, -0.5, -0.5]) * 1/(hf**2)
+    # from lchs_pauli import pauli_arr_to_mat
+    # hf = 8
+    # A_pauli_arr = ['II', 'IX', 'XX', 'YY']
+    # A_coef_arr = numpy.array([2, -1, -0.5, -0.5]) * 1/(hf**2)
     # L_pauli_arr = A_pauli_arr
     # L_coef_arr = A_coef_arr.copy()
     # H_pauli_arr = []
     # H_coef_arr = numpy.array([])
-    #
+    
     # A = pauli_arr_to_mat(A_coef_arr, A_pauli_arr)
     # L = pauli_arr_to_mat(L_coef_arr, L_pauli_arr)
     # if len(H_pauli_arr) > 0:
@@ -581,14 +580,14 @@ if __name__ == "__main__":
 
     ## Define the time interval [0,T], beta and epsilon for LCHS parameters, epislon is the error tolerance
     T = 1
-    beta = 0.3 # 0< beta < 1
-    epsilon = 0.05 #0.05
+    beta = 0.9 # 0< beta < 1
+    epsilon = 0.1 #0.05
     tests_class_ho = True
-    tests_quant_qis = False
+    tests_quant_qis = True
     tests_quant_my = False
     tests_quant_mytrotter = False
 
-    tests_class_inho = False
+    tests_class_inho = True
 
     tests_bulk_hoinho= False
 
