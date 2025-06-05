@@ -612,6 +612,33 @@ def pauli_expoent_circ(time:float, coeff_arr:numpy.ndarray, pauli_arr:list[str],
 
 
 
+
+
+
+def synthu_vbos(unitary:numpy.ndarray, exp_coeff:float, N_d:int, N_t:int=1, use_circuit:bool=True, flip_matrix:bool=False):
+    import sys
+    sys.path.append('./src')
+    import pauli2qumode
+    import c2qa
+
+    from utils_synth import qiskit_normal_order_switch
+    if flip_matrix:
+        unitary = qiskit_normal_order_switch(unitary)
+
+    ## Wrapper for synthu_qsdcircuit
+    circuit = pauli2qumode.var_recd(unitary, N_t=N_t, N_d=N_d, exp_coeff=exp_coeff, use_circuit=use_circuit)
+    return circuit
+
+
+
+
+
+
+
+
+
+
+
 ####----------------------------------------- Tests -----------------------------------------####
 
 if __name__ == "__main__":

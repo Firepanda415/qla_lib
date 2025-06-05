@@ -384,6 +384,7 @@ def class_lchs_tips(A:numpy.matrix, u0:numpy.matrix, func_bt:Callable[[complex],
 ## Homogenous Part of the Solution
 def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsilon:float, 
                     trunc_multiplier=2, trotterLH:bool=False,
+                    vbos_Nt:int=0,
                     qiskit_api:bool=False, verbose:int=0, 
                     no_state_prep:bool=False,
                     debug:bool=False, rich_return:bool=False) -> tuple[numpy.matrix,numpy.matrix]: 
@@ -464,7 +465,11 @@ def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
     num_control_qubits = nearest_num_qubit(len(coeffs))
     if trotterLH:
         exph_circ = qiskit.QuantumCircuit(int(numpy.log2(H.shape[0])))
-        synthu_qsd(utk_H(tT, 0.5*H), exph_circ) ## exp(i(A+B)) approx exp(iA/2) exp(iB) exp(iA/2), (4.104) in Nielsen and Chuang (10th anniversary edition)
+        if vbos_Nt > 0:
+            from pauli2qumode import var_recd
+            exph_circ = var_recd(H, N_t=vbos_Nt, N_d=1, exp_coeff=-1j*0.5*tT, use_circuit=True)
+        else:
+            synthu_qsd(utk_H(tT, 0.5*H), exph_circ) ## exp(i(A+B)) approx exp(iA/2) exp(iB) exp(iA/2), (4.104) in Nielsen and Chuang (10th anniversary edition)
         exph_circ = exph_circ.reverse_bits()
         lcu_circ.compose(exph_circ, qubits=range(exph_circ.num_qubits), front=True, inplace=True)
         lcu_circ.compose(exph_circ, qubits=range(exph_circ.num_qubits), front=False, inplace=True)
@@ -545,17 +550,21 @@ if __name__ == "__main__":
     hf = 8
     A_pauli_arr = ['II', 'IX', 'XX', 'YY']
     A_coef_arr = numpy.array([2, -1, -0.5, -0.5]) * 1/(hf**2)
-    L_pauli_arr = A_pauli_arr
-    L_coef_arr = A_coef_arr.copy()
-    H_pauli_arr = []
-    H_coef_arr = numpy.array([])
+    # L_pauli_arr = A_pauli_arr
+    # L_coef_arr = A_coef_arr.copy()
+    # H_pauli_arr = []
+    # H_coef_arr = numpy.array([])
     #
-    A = pauli_arr_to_mat(A_coef_arr, A_pauli_arr)
-    L = pauli_arr_to_mat(L_coef_arr, L_pauli_arr)
-    if len(H_pauli_arr) > 0:
-        H = pauli_arr_to_mat(H_coef_arr, H_pauli_arr)
-    else:
-        H = numpy.zeros_like(L)
+    # A = pauli_arr_to_mat(A_coef_arr, A_pauli_arr)
+    # L = pauli_arr_to_mat(L_coef_arr, L_pauli_arr)
+    # if len(H_pauli_arr) > 0:
+    #     H = pauli_arr_to_mat(H_coef_arr, H_pauli_arr)
+    # else:
+    #     H = numpy.zeros_like(L)
+
+    # omega = 0.05
+    # A = numpy.array([[0,-1],[-omega**2, 0]])
+    # L,H = cart_decomp(A)
 
 
 
@@ -573,7 +582,7 @@ if __name__ == "__main__":
     ## Define the time interval [0,T], beta and epsilon for LCHS parameters, epislon is the error tolerance
     T = 1
     beta = 0.3 # 0< beta < 1
-    epsilon = 0.001 #0.05
+    epsilon = 0.05 #0.05
     tests_class_ho = True
     tests_quant_qis = False
     tests_quant_my = False
