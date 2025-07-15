@@ -463,9 +463,13 @@ def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
     lcu_circ, coeffs, unitaries, coeffs_1norm = lcu_generator(coeffs_unrot, unitaries_unrot, initial_state_circ=None, verbose=verbose, qiskit_api=qiskit_api, debug=debug) ## NOTE: the return circuit is NOT in qiskit order
     num_control_qubits = nearest_num_qubit(len(coeffs))
     if trotterLH:
-        exph_circ = qiskit.QuantumCircuit(int(numpy.log2(H.shape[0])))
-        synthu_qsd(utk_H(tT, 0.5*H), exph_circ) ## exp(i(A+B)) approx exp(iA/2) exp(iB) exp(iA/2), (4.104) in Nielsen and Chuang (10th anniversary edition)
-        exph_circ = exph_circ.reverse_bits()
+        if qiskit_api:
+            exph_circ = qiskit.circuit.library.UnitaryGate(utk_H(tT, 0.5*H))
+        else:
+            exph_circ = qiskit.QuantumCircuit(int(numpy.log2(H.shape[0])))
+            exph_circ = qiskit.QuantumCircuit(int(numpy.log2(H.shape[0])))
+            synthu_qsd(utk_H(tT, 0.5*H), exph_circ) ## exp(i(A+B)) approx exp(iA/2) exp(iB) exp(iA/2), (4.104) in Nielsen and Chuang (10th anniversary edition)
+            exph_circ = exph_circ.reverse_bits()
         lcu_circ.compose(exph_circ, qubits=range(exph_circ.num_qubits), front=True, inplace=True)
         lcu_circ.compose(exph_circ, qubits=range(exph_circ.num_qubits), front=False, inplace=True)
     if verbose > 0:

@@ -373,6 +373,7 @@ def bos_select_oracle(unitary_array: list[numpy.ndarray]) -> qiskit.QuantumCircu
     select_circ = c2qa.CVCircuit(qr, qmr)
 
     for i in range(num_terms):
+        print(f"    Optimization process {i+1}/{num_terms}", end='\r')
         ibin = bin_string.format(i)
         control_u = var_recd(unitary_array[i], N_t=1, N_d=5, use_circuit=True, verbose=0)['circuit'].control(num_qubits_control)
 
