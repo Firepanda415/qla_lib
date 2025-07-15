@@ -1,5 +1,5 @@
 
-## LCHS
+# LCHS
 
 ```
 python==3.12.7
@@ -13,6 +13,27 @@ qiskit-nature==0.7.2
 qiskit-qasm3-import==0.5.1
 qiskit-serverless==0.20.0
 ```
+
+
+## For CD-DV LCHS
+
+Need to install [Bosonic Qiskit](https://github.com/C2QA/bosonic-qiskit)
+
+### Varational CD-DV LCHS
+Also need
+```
+qutip==5.0.4
+```
+This implementation uses varational hybrid qubit-qumode ansatz to approximate the Hamiltonian evolution in LCHS. The ansatz is based on [this work](https://arxiv.org/abs/2404.10222). The related implementation is in 
+ - `src/vbos_lchs.py` include all functions for vaeational bosonic LCHS
+ - `VARATIONAL_BOSONIC_LCHS_Example.ipynb` include a test run for varational bosonic LCHS
+Ansatz optimization is based on the paper author's own implementation in [this repo](https://github.com/CQDMQD/qumode_est_paper).
+
+### Continuous-LCU-based LCHS
+
+Still under development.
+
+## For DV LCHS
 
 ### Current Status and Bugs
  - WARNING: because this code is supposed to link to NWQSim, I may swtich the endianness in different functions. I should have left the comments when I switch the endianness.

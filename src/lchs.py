@@ -384,7 +384,6 @@ def class_lchs_tips(A:numpy.matrix, u0:numpy.matrix, func_bt:Callable[[complex],
 ## Homogenous Part of the Solution
 def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsilon:float, 
                     trunc_multiplier=2, trotterLH:bool=False,
-                    vbos_Nt:int=0,
                     qiskit_api:bool=True, verbose:int=0, 
                     no_state_prep:bool=False,
                     debug:bool=False, rich_return:bool=False) -> tuple[numpy.matrix,numpy.matrix]: 
@@ -465,11 +464,7 @@ def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
     num_control_qubits = nearest_num_qubit(len(coeffs))
     if trotterLH:
         exph_circ = qiskit.QuantumCircuit(int(numpy.log2(H.shape[0])))
-        if vbos_Nt > 0:
-            from pauli2qumode import var_recd
-            exph_circ = var_recd(H, N_t=vbos_Nt, N_d=1, exp_coeff=-1j*0.5*tT, use_circuit=True)
-        else:
-            synthu_qsd(utk_H(tT, 0.5*H), exph_circ) ## exp(i(A+B)) approx exp(iA/2) exp(iB) exp(iA/2), (4.104) in Nielsen and Chuang (10th anniversary edition)
+        synthu_qsd(utk_H(tT, 0.5*H), exph_circ) ## exp(i(A+B)) approx exp(iA/2) exp(iB) exp(iA/2), (4.104) in Nielsen and Chuang (10th anniversary edition)
         exph_circ = exph_circ.reverse_bits()
         lcu_circ.compose(exph_circ, qubits=range(exph_circ.num_qubits), front=True, inplace=True)
         lcu_circ.compose(exph_circ, qubits=range(exph_circ.num_qubits), front=False, inplace=True)
