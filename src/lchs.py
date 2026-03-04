@@ -386,7 +386,7 @@ def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
                     trunc_multiplier=2, trotterLH:bool=False,
                     qiskit_api:bool=True, verbose:int=0, 
                     no_state_prep:bool=False,
-                    debug:bool=False, rich_return:bool=False) -> tuple[numpy.matrix,numpy.matrix]: 
+                    debug:bool=False, rich_return:bool=False, save_circuit:bool=False) -> tuple[numpy.matrix,numpy.matrix]: 
     '''
     Solve Homogeneous IVP du/dt = -Au(t) with u(0) = u0
     Input:
@@ -508,6 +508,12 @@ def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
         stateprep_ucr(u0_norm, state_prep_circ)
     lcu_circ.compose(state_prep_circ, qubits=range(int(numpy.log2(H.shape[0]))), front=True, inplace=True)
 
+    if save_circuit:
+        from qiskit import qasm3
+        qasm3.dump(lchs_circ_ho, "lchs_circ_qis.qasm")
+        print("  >> Circuit QASM3 file saved.")
+
+
     ## extra state vector when last (as I did not follow qiskit order) num_control_qubits of control qubits are in state |0>
     full_sv = qiskit.quantum_info.Statevector(lcu_circ).data
     uT = full_sv[:H.shape[0]]
@@ -520,9 +526,52 @@ def quant_lchs_tihs(A:numpy.matrix, u0:numpy.matrix, tT:float, beta:float, epsil
 ##----------------------------------------------------------------------------------------------------------------
 
 
+def pauli_str_to_mat(pauli_str:str) -> numpy.matrix:
+    """
+    Construct matrix from Pauli string
+    Input:
+    - pauli_str: string, Pauli string
+    Output:
+    - numpy matrix, the matrix representation of the Pauli string
+    """
+    X = numpy.matrix([[0,1],[1,0]])
+    Y = numpy.matrix([[0,-1j],[1j,0]])
+    Z = numpy.matrix([[1,0],[0,-1]])
+    I = numpy.matrix([[1,0],[0,1]]) 
+    num_qubits = len(pauli_str)
+    ## Initialize the matrix
+    mat = 1
+    ## Fill the matrix
+    for i, pauli in enumerate(pauli_str):
+        if pauli == 'X':
+            mat = numpy.kron(mat, X)        
+        elif pauli == 'Y':
+            mat = numpy.kron(mat, Y)
+        elif pauli == 'Z':
+            mat = numpy.kron(mat, Z)
+        elif pauli == 'I':
+            mat = numpy.kron(mat, I)
+        else:
+            raise ValueError("Invalid Pauli string")
+    return mat
 
-
-
+def pauli_arr_to_mat(coef_arr:numpy.ndarray, pauli_arr:list[str]) -> numpy.matrix:
+    """
+    Construct matrix from linear combination of Pauli strings
+    Input:
+    - coef_arr: numpy array, coefficients of the linear combination
+    - pauli_arr: list of strings, Pauli strings
+    Output:
+    - numpy matrix, the matrix representation of the linear combination of Pauli strings
+    """
+    if len(coef_arr) != len(pauli_arr):
+        raise ValueError("coef_arr and pauli_arr must have the same length")
+    num_qubits = len(pauli_arr[0])
+    ## Initialize the matrix
+    mat = numpy.zeros((2**num_qubits, 2**num_qubits), dtype=complex)
+    for coef, pauli in zip(coef_arr, pauli_arr):
+        mat += coef*pauli_str_to_mat(pauli)
+    return mat
 
 
 
@@ -538,32 +587,34 @@ if __name__ == "__main__":
     dim = 2**nq
     rng = numpy.random.Generator(numpy.random.PCG64(178984893489))
 
-    ## Random numpy coefficients
-    A = (numpy.matrix(rng.random((dim,dim)),dtype=complex)-0.5)  + 1j*(numpy.matrix(rng.random((dim,dim)),dtype=complex)-0.5)
-    A = 0.1*A + 0.25*numpy.identity(dim)
-    L,H = cart_decomp(A)
+    # ## Random numpy coefficients
+    # A = (numpy.matrix(rng.random((dim,dim)),dtype=complex)-0.5)  + 1j*(numpy.matrix(rng.random((dim,dim)),dtype=complex)-0.5)
+    # A = 0.1*A + 0.25*numpy.identity(dim)
+    # L,H = cart_decomp(A)
 
+    alpha = 1.0  # typical heat-equation range: alpha > 0
+    h_grid = 1.0  # practical range in this project: (0, 2]
+    s = alpha / (h_grid**2)
 
-    # from lchs_pauli import pauli_arr_to_mat
-    # hf = 8
-    # A_pauli_arr = ['II', 'IX', 'XX', 'YY']
-    # A_coef_arr = numpy.array([2, -1, -0.5, -0.5]) * 1/(hf**2)
-    # L_pauli_arr = A_pauli_arr
-    # L_coef_arr = A_coef_arr.copy()
-    # H_pauli_arr = []
-    # H_coef_arr = numpy.array([])
+    # L = sum_j l_j P_j
+    A_pauli_arr = ["II", "IX", "XX", "YY"]
+    A_coef_arr = [2.0 * s, -1.0 * s, -0.5 * s, -0.5 * s]
+
+    L_pauli_arr = A_pauli_arr
+    L_coef_arr = A_coef_arr.copy()
+    H_pauli_arr = []
+    H_coef_arr = numpy.array([])
     
-    # A = pauli_arr_to_mat(A_coef_arr, A_pauli_arr)
-    # L = pauli_arr_to_mat(L_coef_arr, L_pauli_arr)
-    # if len(H_pauli_arr) > 0:
-    #     H = pauli_arr_to_mat(H_coef_arr, H_pauli_arr)
-    # else:
-    #     H = numpy.zeros_like(L)
+    A = pauli_arr_to_mat(A_coef_arr, A_pauli_arr)
+    L = pauli_arr_to_mat(L_coef_arr, L_pauli_arr)
+    if len(H_pauli_arr) > 0:
+        H = pauli_arr_to_mat(H_coef_arr, H_pauli_arr)
+    else:
+        H = numpy.zeros_like(L)
 
     # omega = 0.05
     # A = numpy.array([[0,-1],[-omega**2, 0]])
     # L,H = cart_decomp(A)
-
 
 
     print(f"Norm of A: {numpy.linalg.norm(A, ord=2)}, Norm of L: {numpy.linalg.norm(L, ord=2)}, Norm of H: {numpy.linalg.norm(H, ord=2)}")
@@ -574,21 +625,24 @@ if __name__ == "__main__":
         # return 0.1*numpy.array([ -0.3*t+1j, 0.5-0.1j],dtype=complex).reshape(-1,1) 
         return rng.random((dim,1))-0.5 + 1j*(rng.random((dim,1))-0.5)
     ## Random initial state
-    u0 = numpy.matrix( rng.random((dim,1)) ,dtype=complex) ## dtype complex is necessary for scipy to compute complex integral
-    u0 = u0/numpy.linalg.norm(u0, ord=2)
+    # u0 = numpy.matrix( rng.random((dim,1)) ,dtype=complex) ## dtype complex is necessary for scipy to compute complex integral
+    # u0 = u0/numpy.linalg.norm(u0, ord=2)
+    u0 = numpy.matrix(numpy.array([0,1,0,0], dtype=complex)).reshape((dim,1))
 
     ## Define the time interval [0,T], beta and epsilon for LCHS parameters, epislon is the error tolerance
     T = 1
-    beta = 0.9 # 0< beta < 1
+    beta = 0.95 # 0< beta < 1
     epsilon = 0.1 #0.05
     tests_class_ho = True
     tests_quant_qis = True
     tests_quant_my = False
     tests_quant_mytrotter = False
 
-    tests_class_inho = True
+    tests_class_inho = False
 
     tests_bulk_hoinho= False
+
+    save_circuit = True # only valid for tests_quant_qis
 
     debug=False
 
@@ -681,7 +735,7 @@ if __name__ == "__main__":
 
     if tests_quant_qis:
         print("\n\nTests with Quantum Subroutine (Qiskit API)")
-        quant_uT, lchs_circ_ho = quant_lchs_tihs(A, u0, T, beta, epsilon, trunc_multiplier=2, qiskit_api=True, verbose=1, debug=debug)
+        quant_uT, lchs_circ_ho = quant_lchs_tihs(A, u0, T, beta, epsilon, trunc_multiplier=2, qiskit_api=True, verbose=1, debug=debug, save_circuit=save_circuit)
 
         quant_uT = numpy.array(quant_uT).reshape(-1)
         if numpy.linalg.norm(quant_uT.imag,ord=2) < 1e-12:
